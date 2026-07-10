@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 
 from flask import (
-    Blueprint, render_template, request, jsonify, send_file,
+    Blueprint, render_template, request, jsonify, send_file, redirect, url_for,
 )
 from flask_login import login_required
 
@@ -103,7 +103,10 @@ def live_bidding_record():
     item.paid_handler = paid_handler if paid_amount > 0 else item.paid_handler
 
     db.session.commit()
-    return jsonify({"ok": True})
+    # If AJAX request (from JS fetch), return JSON. Otherwise redirect back.
+    if request.headers.get("Accept") == "application/json" or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"ok": True})
+    return redirect(url_for("live_event.live_bidding"))
 
 
 # ════════════════════════════════════════════════════════════════════════
