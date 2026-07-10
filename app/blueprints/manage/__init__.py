@@ -482,6 +482,139 @@ def restore_zip():
 
 
 # ════════════════════════════════════════════════════════════
+#  User Management — list, add, edit, reset password (admin only)
+# ════════════════════════════════════════════════════════════
+
+
+@bp.route("/users")
+@login_required
+def manage_users():
+    """List all system users — admin only."""
+    from flask import render_template
+    from app.models.user import User
+
+    if current_user.role != "admin":
+        from flask import abort
+        abort(403)
+
+    users = User.query.order_by(User.id).all()
+    return render_template("manage/users.html", users=users)
+
+
+@bp.route("/users/add", methods=["POST"])
+@login_required
+def manage_users_add():
+    """Add a new system user — admin only."""
+    from flask import request, jsonify
+    from app.extensions import db
+    from app.models.user import User
+
+    if current_user.role != "admin":
+        return jsonify({"ok": False, "error": "僅管理員可執行此操作"}), 403
+
+    username = request.form.get("username", "").strip()
+    password = request.form.get("password", "").strip()
+    display_name = request.form.get("display_name", "").strip()
+    role = request.form.get("role", "user").strip()
+    is_active = request.form.get("is_active", "1") == "1"
+
+    if not username or not password:
+        return jsonify({"ok": False, "error": "用戶名稱及密碼為必填"}), 400
+
+    if len(username) < 2:
+        return jsonify({"ok": False, "error": "用戶名稱至少需要2個字符"}), 400
+
+    if len(password) < 4:
+        return jsonify({"ok": False, "error": "密碼長度至少需要4個字符"}), 400
+
+    if role not in ("admin", "user"):
+        role = "user"
+
+    existing = User.query.filter_by(username=username).first()
+    if existing:
+        return jsonify({"ok": False, "error": "用戶名稱已存在"}), 400
+
+    user = User(
+        username=username,
+        display_name=display_name or username,
+        role=role,
+        is_active=is_active,
+    )
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
+
+    return jsonify({"ok": True, "user": {"id": user.id, "username": user.username}})
+
+
+@bp.route("/users/<int:uid>/edit", methods=["POST"])
+@login_required
+def manage_users_edit(uid):
+    """Edit an existing user — admin only."""
+    from flask import request, jsonify
+    from app.extensions import db
+    from app.models.user import User
+
+    if current_user.role != "admin":
+        return jsonify({"ok": False, "error": "僅管理員可執行此操作"}), 403
+
+    user = User.query.get(uid)
+    if user is None:
+        return jsonify({"ok": False, "error": "用戶不存在"}), 404
+
+    # Cannot change own role/active via this endpoint (prevent lockout)
+    display_name = request.form.get("display_name", "").strip()
+    role = request.form.get("role", "").strip()
+    is_active = request.form.get("is_active")
+
+    if display_name:
+        user.display_name = display_name
+
+    if role in ("admin", "user"):
+        # Don't let admin demote themselves
+        if uid == current_user.id and role != "admin":
+            return jsonify({"ok": False, "error": "不能將自己的管理員角色降級"}), 400
+        user.role = role
+
+    if is_active is not None:
+        active_val = is_active == "1"
+        # Don't let admin deactivate themselves
+        if uid == current_user.id and not active_val:
+            return jsonify({"ok": False, "error": "不能停用自己的帳戶"}), 400
+        user.is_active = active_val
+
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/users/<int:uid>/reset-password", methods=["POST"])
+@login_required
+def manage_users_reset_password(uid):
+    """Reset a user's password — admin only."""
+    from flask import request, jsonify
+    from app.extensions import db
+    from app.models.user import User
+
+    if current_user.role != "admin":
+        return jsonify({"ok": False, "error": "僅管理員可執行此操作"}), 403
+
+    user = User.query.get(uid)
+    if user is None:
+        return jsonify({"ok": False, "error": "用戶不存在"}), 404
+
+    new_password = request.form.get("password", "").strip()
+    if not new_password:
+        return jsonify({"ok": False, "error": "新密碼為必填"}), 400
+
+    if len(new_password) < 4:
+        return jsonify({"ok": False, "error": "密碼長度至少需要4個字符"}), 400
+
+    user.set_password(new_password)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+# ════════════════════════════════════════════════════════════
 #  Category Management — Item & Expense categories (JSON)
 # ════════════════════════════════════════════════════════════
 

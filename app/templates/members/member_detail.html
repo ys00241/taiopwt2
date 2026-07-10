@@ -221,12 +221,139 @@
   {% endif %}
 
 </div>
+<!-- ═══ Edit Member Modal ═══ -->
+<div id="editMemberModal" class="modal-overlay" style="display: none;">
+  <div class="modal-container" style="max-width: 500px;">
+    <div class="flex items-center justify-between mb-lg">
+      <h2 class="font-headline-md" style="color: var(--on-surface);">編輯會員資料</h2>
+      <button class="icon-btn" onclick="closeEditModal()">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <form id="editMemberForm" onsubmit="submitEditMember(event)">
+      <input type="hidden" name="member_id" value="{{ member.member_id }}">
+      <div class="flex flex-col gap-md">
+        <div>
+          <label class="form-label" for="edit_name">姓名 <span style="color: var(--tertiary);">*</span></label>
+          <input class="form-input" type="text" id="edit_name" name="name" required value="{{ member.name }}">
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-md">
+          <div>
+            <label class="form-label" for="edit_phone">電話</label>
+            <input class="form-input" type="text" id="edit_phone" name="phone" value="{{ member.phone or '' }}">
+          </div>
+          <div>
+            <label class="form-label" for="edit_phone_2">後備電話</label>
+            <input class="form-input" type="text" id="edit_phone_2" name="phone_2" value="{{ member.phone_2 or '' }}">
+          </div>
+        </div>
+        <div>
+          <label class="form-label" for="edit_address">地址</label>
+          <input class="form-input" type="text" id="edit_address" name="home_address" value="{{ member.home_address or '' }}">
+        </div>
+        <div>
+          <label class="form-label" for="edit_first_year">加入年份</label>
+          <input class="form-input" type="number" id="edit_first_year" name="first_year" min="1900" max="2099"
+                 value="{{ member.first_year or '' }}">
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-md">
+          <div>
+            <label class="form-label" for="edit_member_type">會員類型</label>
+            <select class="form-input" id="edit_member_type" name="member_type">
+              <option value="member" {% if member.member_type == 'member' %}selected{% endif %}>會員</option>
+              <option value="friend" {% if member.member_type == 'friend' %}selected{% endif %}>會友</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" for="edit_status">狀態</label>
+            <select class="form-input" id="edit_status" name="status">
+              <option value="active" {% if member.status == 'active' or not member.status %}selected{% endif %}>有效</option>
+              <option value="inactive" {% if member.status == 'inactive' %}selected{% endif %}>已退</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-sm mt-lg">
+        <button type="button" class="btn-secondary" onclick="closeEditModal()">取消</button>
+        <button type="submit" class="btn-primary">
+          <span class="material-symbols-outlined">save</span>
+          儲存
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ Toast ═══ -->
+<div id="editToast" style="display: none; position: fixed; bottom: 6rem; left: 50%; transform: translateX(-50%);
+     background: var(--inverse-surface); color: var(--surface); padding: 0.75rem 1.5rem; border-radius: 10px;
+     font-family: 'Inter', sans-serif; font-size: 0.875rem; z-index: 999; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+</div>
 {% endblock %}
 
 {% block scripts %}
+<style>
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+    padding: 1rem;
+  }
+  .modal-container {
+    background: var(--surface);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  }
+</style>
 <script>
+  // ── Edit Modal ──
+  function openEditModal() {
+    document.getElementById('editMemberModal').style.display = 'flex';
+  }
+  function closeEditModal() {
+    document.getElementById('editMemberModal').style.display = 'none';
+  }
+
+  async function submitEditMember(e) {
+    e.preventDefault();
+    const form = e.target;
+    const formData = new FormData(form);
+    const memberId = formData.get('member_id');
+    try {
+      const resp = await fetch('/members/' + memberId + '/edit', {
+        method: 'POST', body: formData
+      });
+      const data = await resp.json();
+      const toast = document.getElementById('editToast');
+      if (data.ok) {
+        toast.textContent = '✅ 已儲存';
+        toast.style.display = 'block';
+        setTimeout(() => { toast.style.display = 'none'; window.location.reload(); }, 1000);
+      } else {
+        toast.textContent = '❌ ' + (data.error || '儲存失敗');
+        toast.style.display = 'block';
+        setTimeout(() => { toast.style.display = 'none'; }, 3000);
+      }
+    } catch (err) {
+      alert('網絡錯誤，請重試');
+    }
+  }
+
+  // Close modal on overlay click
   document.addEventListener('DOMContentLoaded', function () {
-    console.log('Member detail loaded — {{ member.name }}');
+    const overlay = document.getElementById('editMemberModal');
+    if (overlay) {
+      overlay.addEventListener('click', function (e) {
+        if (e.target === this) closeEditModal();
+      });
+    }
   });
 </script>
 {% endblock %}

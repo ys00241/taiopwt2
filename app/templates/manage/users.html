@@ -1,0 +1,448 @@
+{% extends "base.html" %}
+
+{% block title %}用戶管理 — 寶榮堂花炮會{% endblock %}
+{% block page_title %}用戶管理 Users{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+
+  <div class="flex items-center justify-between mb-lg">
+    <p class="font-body-sm" style="color: var(--on-surface-variant);">
+      管理系統用戶 — 新增、編輯、重設密碼
+    </p>
+    <button class="btn-primary" onclick="openAddModal()">
+      <span class="material-symbols-outlined">person_add</span>
+      新增用戶
+    </button>
+  </div>
+
+  <!-- ═══ Users Table ═══ -->
+  <div class="imperial-card">
+    <div class="overflow-x-auto">
+      <table class="imperial-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>用戶名稱</th>
+            <th>顯示名稱</th>
+            <th>角色</th>
+            <th>狀態</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td class="font-label-lg">{{ u.id }}</td>
+            <td><strong>{{ u.username }}</strong></td>
+            <td style="color: var(--on-surface-variant);">{{ u.display_name }}</td>
+            <td>
+              {% if u.role == "admin" %}
+              <span class="chip chip-primary">管理員 Admin</span>
+              {% else %}
+              <span class="chip">用戶 User</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if u.is_active %}
+              <span class="chip chip-green">啟用</span>
+              {% else %}
+              <span class="chip chip-red">停用</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="flex items-center gap-sm flex-wrap">
+                <button class="btn-sm btn-outline" onclick="openEditModal({{ u.id }}, '{{ u.username|e }}', '{{ u.display_name|e }}', '{{ u.role }}', {{ 'true' if u.is_active else 'false' }})">
+                  <span class="material-symbols-outlined" style="font-size: 1rem;">edit</span>
+                  編輯
+                </button>
+                <button class="btn-sm btn-outline" onclick="openResetModal({{ u.id }}, '{{ u.username|e }}')">
+                  <span class="material-symbols-outlined" style="font-size: 1rem;">key</span>
+                  重設密碼
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="6" class="text-center font-body-md" style="color: var(--on-surface-variant); padding: 2rem;">
+              暫無用戶
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══ Back Link ═══ -->
+  <div class="mt-lg">
+    <a href="{{ url_for('manage.index') }}" class="btn-outline">
+      <span class="material-symbols-outlined">arrow_back</span>
+      返回管理首頁
+    </a>
+  </div>
+
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--  Add User Modal                                          -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="addModal" class="modal-overlay hidden">
+  <div class="modal-content imperial-card" style="max-width: 480px;">
+    <div class="flex items-center justify-between mb-md">
+      <h2 class="font-headline-md" style="color: var(--on-surface);">新增用戶</h2>
+      <button class="btn-icon" onclick="closeModal('addModal')">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <form id="addForm" onsubmit="return doAddUser(event)">
+      <div class="mb-md">
+        <label class="form-label">用戶名稱 *</label>
+        <input type="text" name="username" class="form-input" required minlength="2" placeholder="請輸入用戶名稱">
+      </div>
+      <div class="mb-md">
+        <label class="form-label">密碼 *</label>
+        <input type="password" name="password" class="form-input" required minlength="4" placeholder="請輸入密碼 (至少4個字符)">
+      </div>
+      <div class="mb-md">
+        <label class="form-label">顯示名稱</label>
+        <input type="text" name="display_name" class="form-input" placeholder="可選，預設為用戶名稱">
+      </div>
+      <div class="mb-md">
+        <label class="form-label">角色</label>
+        <select name="role" class="form-input">
+          <option value="user">用戶 User</option>
+          <option value="admin">管理員 Admin</option>
+        </select>
+      </div>
+      <div class="mb-lg">
+        <label class="form-checkbox">
+          <input type="checkbox" name="is_active" value="1" checked>
+          <span>啟用帳戶</span>
+        </label>
+      </div>
+
+      <div id="addError" class="hidden chip chip-red mb-md" style="padding: 0.5rem 1rem;"></div>
+
+      <div class="flex items-center justify-end gap-sm">
+        <button type="button" class="btn-outline" onclick="closeModal('addModal')">取消</button>
+        <button type="submit" class="btn-primary" id="addBtn">
+          <span class="material-symbols-outlined">person_add</span>
+          新增
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--  Edit User Modal                                         -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="editModal" class="modal-overlay hidden">
+  <div class="modal-content imperial-card" style="max-width: 480px;">
+    <div class="flex items-center justify-between mb-md">
+      <h2 class="font-headline-md" style="color: var(--on-surface);">編輯用戶</h2>
+      <button class="btn-icon" onclick="closeModal('editModal')">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <p class="font-body-sm mb-md" style="color: var(--on-surface-variant);" id="editUserLabel">編輯: </p>
+
+    <form id="editForm" onsubmit="return doEditUser(event)">
+      <input type="hidden" name="uid" id="editUid">
+      <div class="mb-md">
+        <label class="form-label">顯示名稱</label>
+        <input type="text" name="display_name" id="editDisplayName" class="form-input" placeholder="顯示名稱">
+      </div>
+      <div class="mb-md">
+        <label class="form-label">角色</label>
+        <select name="role" id="editRole" class="form-input">
+          <option value="user">用戶 User</option>
+          <option value="admin">管理員 Admin</option>
+        </select>
+      </div>
+      <div class="mb-lg">
+        <label class="form-checkbox">
+          <input type="checkbox" name="is_active" id="editIsActive" value="1">
+          <span>啟用帳戶</span>
+        </label>
+      </div>
+
+      <div id="editError" class="hidden chip chip-red mb-md" style="padding: 0.5rem 1rem;"></div>
+
+      <div class="flex items-center justify-end gap-sm">
+        <button type="button" class="btn-outline" onclick="closeModal('editModal')">取消</button>
+        <button type="submit" class="btn-primary" id="editBtn">
+          <span class="material-symbols-outlined">save</span>
+          儲存
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--  Reset Password Modal                                    -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="resetModal" class="modal-overlay hidden">
+  <div class="modal-content imperial-card" style="max-width: 480px;">
+    <div class="flex items-center justify-between mb-md">
+      <h2 class="font-headline-md" style="color: var(--on-surface);">重設密碼</h2>
+      <button class="btn-icon" onclick="closeModal('resetModal')">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <p class="font-body-sm mb-md" style="color: var(--on-surface-variant);" id="resetUserLabel">重設密碼: </p>
+
+    <form id="resetForm" onsubmit="return doResetPassword(event)">
+      <input type="hidden" name="uid" id="resetUid">
+      <div class="mb-lg">
+        <label class="form-label">新密碼 *</label>
+        <input type="password" name="password" id="resetPassword" class="form-input" required minlength="4" placeholder="請輸入新密碼 (至少4個字符)">
+      </div>
+
+      <div id="resetError" class="hidden chip chip-red mb-md" style="padding: 0.5rem 1rem;"></div>
+
+      <div class="flex items-center justify-end gap-sm">
+        <button type="button" class="btn-outline" onclick="closeModal('resetModal')">取消</button>
+        <button type="submit" class="btn-primary" id="resetBtn">
+          <span class="material-symbols-outlined">key</span>
+          重設密碼
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+  /* ── Modal Overlay ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1rem;
+  }
+  .modal-content {
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .hidden { display: none !important; }
+
+  /* ── Button sizes ── */
+  .btn-icon {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 50%;
+    color: var(--on-surface-variant);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .btn-icon:hover {
+    background: var(--surface-container-high);
+  }
+
+  .btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .btn-outline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--outline-variant);
+    border-radius: 0.5rem;
+    background: transparent;
+    color: var(--on-surface);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.875rem;
+    text-decoration: none;
+    transition: background 0.15s;
+  }
+  .btn-outline:hover {
+    background: var(--surface-container);
+  }
+
+  /* ── Checkbox ── */
+  .form-checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--on-surface);
+  }
+  .form-checkbox input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--primary);
+  }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ══════════════════════════════════════════
+//  Modal helpers
+// ══════════════════════════════════════════
+function openModal(id) {
+  document.getElementById(id).classList.remove('hidden');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.add('hidden');
+}
+// Close modal on overlay click
+document.addEventListener('click', function(e) {
+  if (e.target.classList.contains('modal-overlay')) {
+    e.target.classList.add('hidden');
+  }
+});
+
+// ══════════════════════════════════════════
+//  Add User
+// ══════════════════════════════════════════
+function openAddModal() {
+  document.getElementById('addForm').reset();
+  document.getElementById('addError').classList.add('hidden');
+  openModal('addModal');
+}
+
+function doAddUser(event) {
+  event.preventDefault();
+  const form = document.getElementById('addForm');
+  const data = new FormData(form);
+  const btn = document.getElementById('addBtn');
+  const errorEl = document.getElementById('addError');
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="material-symbols-outlined">sync</span> 新增中...';
+  errorEl.classList.add('hidden');
+
+  fetch('/manage/users/add', { method: 'POST', body: data })
+    .then(r => r.json())
+    .then(res => {
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        errorEl.textContent = '✗ ' + (res.error || '新增失敗');
+        errorEl.classList.remove('hidden');
+      }
+    })
+    .catch(err => {
+      errorEl.textContent = '✗ 網絡錯誤: ' + err.message;
+      errorEl.classList.remove('hidden');
+    })
+    .finally(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-symbols-outlined">person_add</span> 新增';
+    });
+
+  return false;
+}
+
+// ══════════════════════════════════════════
+//  Edit User
+// ══════════════════════════════════════════
+function openEditModal(uid, username, displayName, role, isActive) {
+  document.getElementById('editUid').value = uid;
+  document.getElementById('editUserLabel').textContent = '編輯: ' + username;
+  document.getElementById('editDisplayName').value = displayName || '';
+  document.getElementById('editRole').value = role;
+  document.getElementById('editIsActive').checked = isActive;
+  document.getElementById('editError').classList.add('hidden');
+  openModal('editModal');
+}
+
+function doEditUser(event) {
+  event.preventDefault();
+  const data = new FormData(document.getElementById('editForm'));
+  const uid = data.get('uid');
+  const btn = document.getElementById('editBtn');
+  const errorEl = document.getElementById('editError');
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="material-symbols-outlined">sync</span> 儲存中...';
+  errorEl.classList.add('hidden');
+
+  fetch('/manage/users/' + uid + '/edit', { method: 'POST', body: data })
+    .then(r => r.json())
+    .then(res => {
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        errorEl.textContent = '✗ ' + (res.error || '儲存失敗');
+        errorEl.classList.remove('hidden');
+      }
+    })
+    .catch(err => {
+      errorEl.textContent = '✗ 網絡錯誤: ' + err.message;
+      errorEl.classList.remove('hidden');
+    })
+    .finally(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-symbols-outlined">save</span> 儲存';
+    });
+
+  return false;
+}
+
+// ══════════════════════════════════════════
+//  Reset Password
+// ══════════════════════════════════════════
+function openResetModal(uid, username) {
+  document.getElementById('resetUid').value = uid;
+  document.getElementById('resetUserLabel').textContent = '重設密碼: ' + username;
+  document.getElementById('resetPassword').value = '';
+  document.getElementById('resetError').classList.add('hidden');
+  openModal('resetModal');
+}
+
+function doResetPassword(event) {
+  event.preventDefault();
+  const data = new FormData(document.getElementById('resetForm'));
+  const uid = data.get('uid');
+  const btn = document.getElementById('resetBtn');
+  const errorEl = document.getElementById('resetError');
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="material-symbols-outlined">sync</span> 重設中...';
+  errorEl.classList.add('hidden');
+
+  fetch('/manage/users/' + uid + '/reset-password', { method: 'POST', body: data })
+    .then(r => r.json())
+    .then(res => {
+      if (res.ok) {
+        alert('密碼已成功重設！');
+        closeModal('resetModal');
+      } else {
+        errorEl.textContent = '✗ ' + (res.error || '重設失敗');
+        errorEl.classList.remove('hidden');
+      }
+    })
+    .catch(err => {
+      errorEl.textContent = '✗ 網絡錯誤: ' + err.message;
+      errorEl.classList.remove('hidden');
+    })
+    .finally(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-symbols-outlined">key</span> 重設密碼';
+    });
+
+  return false;
+}
+</script>
+{% endblock %}

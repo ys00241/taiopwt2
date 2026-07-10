@@ -47,6 +47,20 @@ def create_app(config_name: str | None = None) -> Flask:
             except Exception:
                 pass  # non-SQLite or first-run
 
+    # Migrate existing database — add new columns if they don't exist
+    with flask_app.app_context():
+        if "sqlite" in flask_app.config.get("SQLALCHEMY_DATABASE_URI", ""):
+            from sqlalchemy import text as _t
+            try:
+                db.session.execute(_t("ALTER TABLE members ADD COLUMN member_type VARCHAR(20) DEFAULT 'member'"))
+            except Exception:
+                pass  # column already exists
+            try:
+                db.session.execute(_t("ALTER TABLE members ADD COLUMN status VARCHAR(20) DEFAULT 'active'"))
+            except Exception:
+                pass  # column already exists
+            db.session.commit()
+
     # Import models so they are registered with SQLAlchemy
     with flask_app.app_context():
         import app.models  # noqa: F401
