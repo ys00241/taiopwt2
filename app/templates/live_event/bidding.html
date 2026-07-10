@@ -286,6 +286,12 @@
     .bid-total-hero .amount { font-size: 1.75rem; }
     .page-content { padding-left: 0.75rem; padding-right: 0.75rem; }
   }
+
+  /* ── Spin animation for loading ── */
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
 </style>
 {% endblock %}
 
@@ -316,13 +322,16 @@
   <div id="availablePanel" class="flex flex-col gap-sm">
     {% if available_items %}
     {% for item in available_items %}
-    <div class="bid-item-card" onclick="openBidSheet({{ item.id }}, '{{ item.item_name|e }}', {{ item.sticker_no|default(0) }}, {{ item.cost|default(0)|int }})">
-      <div class="sticker">{{ "%02d"|format(item.sticker_no|int) if item.sticker_no else '??' }}</div>
+    <div class="bid-item-card" data-bid-id="{{ item.id }}" data-bid-name="{{ item.item_name|e }}" data-bid-sticker="{{ item.sticker_no|default(0) }}" data-bid-cost="{{ item.cost|default(0)|int }}">
+      <div class="sticker" onclick="event.stopPropagation(); openItemDetail({{ item.id }});" style="cursor:pointer;">{{ "%02d"|format(item.sticker_no|int) if item.sticker_no else '??' }}</div>
       <div class="flex-1 min-w-0">
-        <div class="font-headline-sm truncate">{{ item.item_name or '未命名' }}</div>
+        <div class="font-headline-sm truncate" onclick="event.stopPropagation(); openItemDetail({{ item.id }});" style="cursor:pointer;">{{ item.item_name or '未命名' }}</div>
         <div class="font-body-sm text-on-surface-variant mt-xs">底價/成本: ${{ item.cost|int if item.cost else 0 }}</div>
       </div>
       <span class="material-symbols-outlined" style="color: var(--primary);">gavel</span>
+      <button class="icon-btn" onclick="event.stopPropagation(); openItemDetail({{ item.id }});" title="檢視詳情" style="width:32px;height:32px;">
+        <span class="material-symbols-outlined" style="font-size:1.125rem;">info</span>
+      </button>
     </div>
     {% else %}
     <div class="flex flex-col items-center py-xl" style="color: var(--on-surface-variant);">
@@ -337,7 +346,7 @@
   <div id="wonPanel" class="flex flex-col gap-sm" style="display: none;">
     {% if won_items %}
     {% for item in won_items %}
-    <div class="won-item-card">
+    <div class="won-item-card" style="cursor:pointer;" onclick="openItemDetail({{ item.id }})">
       <div class="sticker">{{ "%02d"|format(item.sticker_no|int) if item.sticker_no else '??' }}</div>
       <div class="flex-1 min-w-0">
         <div class="font-headline-sm truncate">{{ item.item_name or '未命名' }}</div>
@@ -364,6 +373,8 @@
   </div>
 
 </div>
+
+{% include "components/item_detail_modal.html" %}
 
 <!-- ═══ BID BOTTOM SHEET ═══ -->
 <div class="bottom-sheet-overlay" id="bidSheet">
@@ -485,6 +496,17 @@
   // ── Close on overlay click ──
   document.getElementById('bidSheet')?.addEventListener('click', function(e) {
     if (e.target === this) closeBidSheet();
+  });
+
+  // ── Bid item card clicks (delegated) — replaces inline onclick ──
+  document.getElementById('availablePanel')?.addEventListener('click', function(e) {
+    const card = e.target.closest('.bid-item-card');
+    if (!card) return;
+    const id = parseInt(card.dataset.bidId);
+    const name = card.dataset.bidName || '';
+    const sticker = parseInt(card.dataset.bidSticker || '0');
+    const cost = parseInt(card.dataset.bidCost || '0');
+    openBidSheet(id, name, sticker, cost);
   });
 
   // ════════════════════════════════════════

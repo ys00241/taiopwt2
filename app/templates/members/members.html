@@ -117,7 +117,10 @@
           <td style="text-align: right;">
             {% set unpaid = m.total_due - m.total_paid %}
             {% if unpaid > 0 %}
-            <span style="color: var(--tertiary); font-weight: 600;">${{ unpaid|int }}</span>
+            <a href="#" onclick="event.stopPropagation(); showDebtModal({{ m.member_id }}, {{ m.name|tojson }}); return false;"
+               style="color: var(--tertiary); font-weight: 600; text-decoration: none; cursor: pointer;">
+              ${{ unpaid|int }}
+            </a>
             {% else %}
             <span style="color: var(--on-surface-variant);">$0</span>
             {% endif %}
@@ -174,7 +177,10 @@
             {% endif %}
             {% set unpaid = m.total_due - m.total_paid %}
           {% if unpaid > 0 %}
-          <span class="chip chip-red">${{ unpaid|int }}</span>
+          <a href="#" onclick="event.stopPropagation(); showDebtModal({{ m.member_id }}, {{ m.name|tojson }}); return false;"
+             style="text-decoration: none;">
+            <span class="chip chip-red">${{ unpaid|int }}</span>
+          </a>
           {% elif m.total_due > 0 %}
           <span class="chip chip-green">已清</span>
           {% else %}
@@ -432,3 +438,89 @@
   });
 </script>
 {% endblock %}
+
+<!-- ═══ Debt Detail Modal (shared) ═══ -->
+<div id="debtModal" class="modal-overlay" style="display: none;">
+  <div class="modal-container" style="max-width: 520px;">
+    <div class="flex items-center justify-between mb-lg">
+      <h2 class="font-headline-md" style="color: var(--on-surface);">
+        <span id="debtModalMemberName">—</span> 欠款明細
+      </h2>
+      <button class="icon-btn" onclick="closeDebtModal()">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div id="debtModalBody">
+      <div class="text-center py-xl" style="color: var(--on-surface-variant);">
+        <span class="material-symbols-outlined" style="font-size: 2rem;">hourglass_empty</span>
+        <p class="font-body-md mt-sm">載入中...</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Debt Detail Modal ──
+function showDebtModal(memberId, memberName) {
+  document.getElementById('debtModalMemberName').textContent = memberName;
+  document.getElementById('debtModal').style.display = 'flex';
+  document.getElementById('debtModalBody').innerHTML =
+    '<div class="text-center py-xl" style="color: var(--on-surface-variant);">' +
+    '<span class="material-symbols-outlined" style="font-size: 2rem;">hourglass_empty</span>' +
+    '<p class="font-body-md mt-sm">載入中...</p></div>';
+
+  fetch('/live/api/member-debt/' + memberId)
+    .then(r => r.json())
+    .then(data => {
+      let html = '';
+      if (!data.bids || data.bids.length === 0) {
+        html = '<div class="text-center py-xl" style="color: var(--on-surface-variant);">' +
+               '<span class="material-symbols-outlined" style="font-size: 2rem;">check_circle</span>' +
+               '<p class="font-body-md mt-sm">沒有欠款記錄</p></div>';
+      } else {
+        html = '<table class="imperial-table"><thead><tr>' +
+               '<th>年份</th><th>聖物名稱</th><th style="text-align:right;">投標金額</th>' +
+               '<th style="text-align:right;">已付金額</th><th style="text-align:right;">欠款</th>' +
+               '</tr></thead><tbody>';
+        data.bids.forEach(function(b) {
+          html += '<tr>' +
+            '<td><span class="chip chip-gold">' + b.year + ' 年</span></td>' +
+            '<td><div class="font-label-lg" style="color: var(--on-surface);">' + (b.item_name || '—') + '</div></td>' +
+            '<td style="text-align:right; font-weight:500;">$' + b.bid_amount + '</td>' +
+            '<td style="text-align:right;">' +
+            (b.paid_amount > 0
+              ? '<span style="color:#166534;">$' + b.paid_amount + '</span>'
+              : '<span style="color:var(--on-surface-variant);">—</span>') +
+            '</td>' +
+            '<td style="text-align:right;"><span style="color: var(--tertiary); font-weight: 600;">$' + b.unpaid + '</span></td>' +
+            '</tr>';
+        });
+        html += '</tbody></table>' +
+          '<div class="flex items-center justify-between mt-md pt-md" style="border-top:1px solid var(--outline-variant);">' +
+          '<span class="font-headline-sm" style="color: var(--tertiary);">欠款總額: $' + data.total_unpaid + '</span>' +
+          '<a href="/live/payments?q=' + encodeURIComponent(data.member_name) + '" class="btn-primary" style="text-decoration:none;">' +
+          '<span class="material-symbols-outlined">payments</span> 收款</a></div>';
+      }
+      document.getElementById('debtModalBody').innerHTML = html;
+    })
+    .catch(function(err) {
+      document.getElementById('debtModalBody').innerHTML =
+        '<div class="text-center py-xl" style="color: var(--tertiary);">' +
+        '<span class="material-symbols-outlined" style="font-size: 2rem;">error</span>' +
+        '<p class="font-body-md mt-sm">載入失敗: ' + err.message + '</p></div>';
+    });
+}
+
+function closeDebtModal() {
+  document.getElementById('debtModal').style.display = 'none';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  var overlay = document.getElementById('debtModal');
+  if (overlay) {
+    overlay.addEventListener('click', function(e) {
+      if (e.target === this) closeDebtModal();
+    });
+  }
+});
+</script>

@@ -1,0 +1,183 @@
+<!-- ═══ Item Detail Modal (shared by items.html and bidding.html) ═══ -->
+<div class="modal-overlay" id="itemDetailModal">
+  <div class="modal-content" style="max-width: 480px;">
+    <div class="flex items-center justify-between mb-md">
+      <div>
+        <h2 class="font-headline-md" id="detailModalTitle" style="color: var(--on-surface);">聖物詳情</h2>
+        <p class="font-body-sm text-on-surface-variant" id="detailModalSubtitle">—</p>
+      </div>
+      <button class="icon-btn" onclick="closeItemDetail()">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <!-- Loading state -->
+    <div id="detailLoading" class="flex items-center justify-center py-lg" style="color: var(--on-surface-variant);">
+      <span class="material-symbols-outlined" style="font-size: 1.5rem; animation: spin 1s linear infinite;">sync</span>
+      <span class="ml-sm font-body-md">載入中...</span>
+    </div>
+
+    <!-- Content (hidden until loaded) -->
+    <div id="detailContent" style="display: none;">
+      <div class="flex flex-col gap-md">
+
+        <!-- Sticker + Name row -->
+        <div class="flex items-center gap-md">
+          <div id="detailStickerBadge" class="sticker-badge" style="width:52px;height:52px;font-size:1.125rem;">--</div>
+          <div>
+            <div id="detailItemName" class="font-headline-md" style="color: var(--on-surface);">—</div>
+            <div id="detailActualItem" class="font-body-sm text-on-surface-variant">—</div>
+          </div>
+        </div>
+
+        <hr style="border: none; border-top: 1px solid var(--outline-variant);">
+
+        <!-- Basic info -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-md">
+          <div>
+            <div class="font-label-md text-on-surface-variant mb-xs">類別</div>
+            <div id="detailCategory" class="font-body-md">—</div>
+          </div>
+          <div>
+            <div class="font-label-md text-on-surface-variant mb-xs">成本</div>
+            <div id="detailCost" class="font-headline-sm" style="color: var(--on-surface);">$0</div>
+          </div>
+          <div class="sm:col-span-2">
+            <div class="font-label-md text-on-surface-variant mb-xs">來源</div>
+            <div id="detailSource" class="font-body-md">—</div>
+          </div>
+          <div class="sm:col-span-2" id="detailNotesRow" style="display: none;">
+            <div class="font-label-md text-on-surface-variant mb-xs">備註</div>
+            <div id="detailNotes" class="font-body-md" style="background: var(--surface-container); border-radius: 8px; padding: 0.75rem;">—</div>
+          </div>
+        </div>
+
+        <hr style="border: none; border-top: 1px solid var(--outline-variant);">
+
+        <!-- Bid info header -->
+        <div class="font-label-md text-on-surface-variant">競投狀態</div>
+
+        <!-- Won state -->
+        <div id="detailWonSection" style="display: none;">
+          <div class="flex items-center gap-xs mb-sm">
+            <span class="chip chip-green">已競投</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-md">
+            <div>
+              <div class="font-label-md text-on-surface-variant mb-xs">投得者</div>
+              <div id="detailBidderName" class="font-body-md" style="font-weight: 600;">—</div>
+            </div>
+            <div>
+              <div class="font-label-md text-on-surface-variant mb-xs">競投金額</div>
+              <div id="detailBidAmount" class="font-headline-sm" style="color: var(--primary);">$0</div>
+            </div>
+            <div>
+              <div class="font-label-md text-on-surface-variant mb-xs">已付金額</div>
+              <div id="detailPaidAmount" class="font-body-md">$0</div>
+            </div>
+            <div>
+              <div class="font-label-md text-on-surface-variant mb-xs">付款方式</div>
+              <div id="detailPaymentMethod" class="font-body-md">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Not won state -->
+        <div id="detailNotWonSection" style="display: none;">
+          <div class="flex items-center gap-xs mb-sm">
+            <span class="chip" style="background: var(--surface-variant); color: var(--on-surface-variant);">尚未競投</span>
+          </div>
+          <p class="font-body-md text-on-surface-variant">此聖物尚未被競投。</p>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/**
+ * Open the item detail modal and fetch data from the API.
+ * @param {number} itemId - The item ID to load.
+ */
+function openItemDetail(itemId) {
+  var modal = document.getElementById('itemDetailModal');
+  var loading = document.getElementById('detailLoading');
+  var content = document.getElementById('detailContent');
+
+  // Reset to loading state
+  if (loading) loading.style.display = 'flex';
+  if (content) content.style.display = 'none';
+
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  fetch('/api/item-detail/' + itemId)
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (loading) loading.style.display = 'none';
+      if (content) content.style.display = 'block';
+
+      // Populate fields
+      var stickerStr = data.sticker_no ? String(data.sticker_no).padStart(2, '0') : '--';
+      document.getElementById('detailStickerBadge').textContent = stickerStr;
+      document.getElementById('detailItemName').textContent = data.item_name || '—';
+      document.getElementById('detailActualItem').textContent = data.actual_item || '—';
+      document.getElementById('detailCategory').textContent = data.category || '—';
+      document.getElementById('detailCost').textContent = '$' + (data.cost || 0).toLocaleString();
+      document.getElementById('detailSource').textContent = data.source || '—';
+      document.getElementById('detailModalTitle').textContent = '聖物 #' + stickerStr;
+      document.getElementById('detailModalSubtitle').textContent = data.item_name || '';
+
+      // Notes
+      var notesRow = document.getElementById('detailNotesRow');
+      var notesEl = document.getElementById('detailNotes');
+      if (data.notes && data.notes.trim()) {
+        notesRow.style.display = 'block';
+        notesEl.textContent = data.notes;
+      } else {
+        notesRow.style.display = 'none';
+      }
+
+      // Bid status
+      var wonSection = document.getElementById('detailWonSection');
+      var notWonSection = document.getElementById('detailNotWonSection');
+
+      if (data.is_won) {
+        wonSection.style.display = 'block';
+        notWonSection.style.display = 'none';
+        document.getElementById('detailBidderName').textContent = data.bidder_name || '—';
+        document.getElementById('detailBidAmount').textContent = '$' + (data.bid_amount || 0).toLocaleString();
+        document.getElementById('detailPaidAmount').textContent = data.paid_amount > 0 ? '$' + data.paid_amount.toLocaleString() : '未付款';
+        document.getElementById('detailPaymentMethod').textContent = data.payment_method || '—';
+      } else {
+        wonSection.style.display = 'none';
+        notWonSection.style.display = 'block';
+      }
+    })
+    .catch(function (err) {
+      console.error('Item detail fetch error:', err);
+      if (loading) loading.style.display = 'none';
+      if (content) content.style.display = 'block';
+      document.getElementById('detailItemName').textContent = '載入失敗';
+      document.getElementById('detailModalSubtitle').textContent = '無法獲取聖物詳情';
+    });
+}
+
+function closeItemDetail() {
+  var modal = document.getElementById('itemDetailModal');
+  modal.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// ── Close on overlay click ──
+document.addEventListener('DOMContentLoaded', function () {
+  var m = document.getElementById('itemDetailModal');
+  if (m) {
+    m.addEventListener('click', function (e) {
+      if (e.target === this) closeItemDetail();
+    });
+  }
+});
+</script>

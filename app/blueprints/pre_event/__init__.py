@@ -421,6 +421,38 @@ def pre_items_sticker_pdf():
 
 
 # ──────────────────────────────────────────────────────────────────────
+#  Item Detail API (used by both pre_event and live_event views)
+# ──────────────────────────────────────────────────────────────────────
+
+
+@bp.route("/api/item-detail/<int:item_id>")
+@login_required
+def item_detail_api(item_id):
+    """Return JSON with full item detail including bid info for the detail modal."""
+    item = db.session.get(ThisYearItem, item_id)
+    if not item:
+        return jsonify({"error": "Item not found"}), 404
+
+    is_won = bool(item.bid_amount and item.bid_amount > 0)
+
+    return jsonify({
+        "id": item.id,
+        "sticker_no": item.sticker_no,
+        "item_name": item.item_name or "—",
+        "actual_item": item.actual_item or "—",
+        "category": item.category or "—",
+        "cost": item.cost or 0,
+        "source": item.source or "—",
+        "notes": item.notes or "",
+        "is_won": is_won,
+        "bidder_name": item.bidder_name or "",
+        "bid_amount": item.bid_amount or 0,
+        "paid_amount": item.paid_amount or 0,
+        "payment_method": item.payment_method or "",
+    })
+
+
+# ──────────────────────────────────────────────────────────────────────
 #  B) 支出管理 — Expenses CRUD
 # ──────────────────────────────────────────────────────────────────────
 

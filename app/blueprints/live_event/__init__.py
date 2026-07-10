@@ -12,6 +12,7 @@ from app.extensions import db
 from app.models.this_year_item import ThisYearItem
 from app.models.bid import Bid
 from app.models.member import Member
+from app.models.item import Item
 from app.models.live_income import LiveIncome
 from app.models.expense import Expense
 from app.models.sponsor import Sponsor
@@ -60,8 +61,8 @@ def live_bidding():
         "available_count": len(available),
     }
 
-    # Build members JSON for JS autocomplete
-    members_json = json.dumps([{"id": m.member_id, "name": m.name, "phone": m.phone or ""} for m in members], ensure_ascii=True)
+    # Build members JSON for JS autocomplete — escape < and > to prevent </script> injection
+    members_json = json.dumps([{"id": m.member_id, "name": m.name, "phone": m.phone or ""} for m in members], ensure_ascii=True).replace('<', '\\u003c').replace('>', '\\u003e')
 
     return render_template(
         "live_event/bidding.html",
@@ -215,6 +216,13 @@ def live_payments():
         d["unpaid"] = due - paid
         result.append(d)
 
+    # Members with outstanding balance (default view on page load)
+    members_with_debt = sorted(
+        [r for r in result if r["unpaid"] > 0],
+        key=lambda x: x["unpaid"],
+        reverse=True,
+    )
+
     # Search filter
     if search:
         name_match_ids = {
@@ -311,6 +319,8 @@ def live_payments():
     return render_template(
         "live_event/payments.html",
         members=result, members_json=json.dumps(result),
+        members_with_debt=members_with_debt,
+        members_with_debt_json=json.dumps(members_with_debt),
         recent_payments=recent,
         year=year, source_year=source_year, search=search,
         years=years,
@@ -375,6 +385,41 @@ def live_payments_pay():
         "paid": amount,
         "remaining": max(0, remaining),
     })
+
+
+@bp.route("/payments/debt-details/<int:member_id>")
+@login_required
+def live_payments_debt_details(member_id):
+    """Return JSON list of unpaid bids for a member (debt breakdown by year/item)."""
+    unpaid_bids = (
+        db.session.query(
+            Bid.year,
+            Bid.bid_amount,
+            Bid.paid_amount,
+            Item.name_1_auspicious,
+            Item.name_2_description,
+        )
+        .outerjoin(Item, Bid.item_id == Item.item_id)
+        .filter(
+            Bid.member_id == member_id,
+            Bid.bid_amount > Bid.paid_amount,
+        )
+        .order_by(Bid.year, Bid.bid_no)
+        .all()
+    )
+
+    items = []
+    for row in unpaid_bids:
+        item_name = row.name_1_auspicious or row.name_2_description or "—"
+        items.append({
+            "year": row.year,
+            "item_name": item_name,
+            "bid_amount": row.bid_amount,
+            "paid_amount": row.paid_amount,
+            "unpaid": row.bid_amount - row.paid_amount,
+        })
+
+    return jsonify(items)
 
 
 # ════════════════════════════════════════════════════════════════════════
@@ -630,6 +675,56 @@ def live_dashboard():
         stats_items_left=items_left,
         sponsors_total=sponsors_total or 0,
     )
+
+
+# ════════════════════════════════════════════════════════════════════════
+#  E) 欠款 API — Member Debt Details
+# ════════════════════════════════════════════════════════════════════════
+
+@bp.route("/api/member-debt/<int:member_id>")
+@login_required
+def api_member_debt(member_id):
+    """Return unpaid bids for a member as JSON breakdown."""
+    year = request.args.get("year")
+    query = Bid.query.filter(
+        Bid.member_id == member_id,
+        Bid.bid_amount > Bid.paid_amount,
+        Bid.bid_amount > 0,
+    )
+    if year:
+        query = query.filter(Bid.year == int(year))
+    query = query.order_by(Bid.year.desc(), Bid.bid_no)
+
+    bids = []
+    for b in query.all():
+        item_name = ""
+        if b.item:
+            parts = []
+            if b.item.name_1_auspicious:
+                parts.append(b.item.name_1_auspicious)
+            if b.item.name_2_description:
+                parts.append(b.item.name_2_description)
+            item_name = " · ".join(parts)
+
+        bids.append({
+            "bid_id": b.id,
+            "year": b.year,
+            "item_name": item_name,
+            "bid_amount": int(b.bid_amount or 0),
+            "paid_amount": int(b.paid_amount or 0),
+            "unpaid": int((b.bid_amount or 0) - (b.paid_amount or 0)),
+        })
+
+    member = db.session.get(Member, member_id)
+    total_unpaid = sum(b["unpaid"] for b in bids)
+
+    return jsonify({
+        "ok": True,
+        "member_id": member_id,
+        "member_name": member.name if member else "",
+        "total_unpaid": total_unpaid,
+        "bids": bids,
+    })
 
 
 # ════════════════════════════════════════════════════════════════════════

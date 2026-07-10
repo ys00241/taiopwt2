@@ -246,6 +246,42 @@
     <div id="searchResults" class="mt-sm" style="display: none;"></div>
   </div>
 
+  <!-- ═══ Members with Outstanding Balance (default view, shown when no search) ═══ -->
+  <div id="debtorList">
+    {% if not search %}
+      {% if members_with_debt %}
+        {% for m in members_with_debt %}
+        <div class="member-result-card mb-sm" onclick="openPaymentSheet({{ m.member_id }}, {{ m.name|tojson }}, {{ m.total_due|default(0)|int }}, {{ m.total_paid_combined|default(0)|int }}, {{ m.unpaid|default(0)|int }})">
+          <div class="flex items-center justify-between mb-sm">
+            <span class="name">{{ m.name }}</span>
+            <span class="material-symbols-outlined" style="color: var(--on-surface-variant);">chevron_right</span>
+          </div>
+          <div class="flex items-center gap-md">
+            <div>
+              <span class="font-body-sm text-on-surface-variant">應繳</span>
+              <div class="font-label-lg">${{ m.total_due|default(0)|int }}</div>
+            </div>
+            <div>
+              <span class="font-body-sm text-on-surface-variant">已繳</span>
+              <div class="font-label-lg" style="color: #166534;">${{ m.total_paid_combined|default(0)|int }}</div>
+            </div>
+            <div>
+              <span class="font-body-sm text-on-surface-variant">未繳</span>
+              <div class="font-headline-md" style="color: var(--tertiary);">${{ m.unpaid|default(0)|int }}</div>
+            </div>
+          </div>
+          <div class="mt-sm"><span class="badge" style="background: #fef2f2; color: var(--tertiary);">尚有欠款</span></div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="flex flex-col items-center py-lg" style="color: var(--on-surface-variant);">
+          <span class="material-symbols-outlined" style="font-size: 2.5rem; margin-bottom: 0.5rem;">check_circle</span>
+          <p class="font-body-md">所有會員已繳清費用</p>
+        </div>
+      {% endif %}
+    {% endif %}
+  </div>
+
   <!-- ═══ Member Result (shown after search) ═══ -->
   <div id="memberResult" style="display: none;"></div>
 
@@ -366,6 +402,7 @@
 {% block scripts %}
 <script>
   let members = {{ members_json|default('[]')|safe }};
+  let membersWithDebt = {{ members_with_debt_json|default('[]')|safe }};
 
   // ════════════════════════════════════════
   // Member Search
@@ -376,12 +413,17 @@
     clearTimeout(searchTimeout);
     const resultsDiv = document.getElementById('searchResults');
     const memberDiv = document.getElementById('memberResult');
+    const debtorList = document.getElementById('debtorList');
 
     if (!query.trim()) {
       resultsDiv.style.display = 'none';
       memberDiv.style.display = 'none';
+      if (debtorList) debtorList.style.display = 'block';
       return;
     }
+
+    // Hide debtor list when searching
+    if (debtorList) debtorList.style.display = 'none';
 
     searchTimeout = setTimeout(() => {
       const q = query.toLowerCase().trim();
