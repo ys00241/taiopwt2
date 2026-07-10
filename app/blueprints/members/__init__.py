@@ -207,11 +207,11 @@ def add_member():
     if not name:
         return jsonify({"error": "會員姓名為必填"}), 400
 
-    # Auto-assign member_id
-    max_id = (
-        db.session.query(func.max(Member.member_id)).scalar() or 0
-    )
-    new_member_id = max_id + 1
+    # Auto-assign random 3-digit member_id (100-999)
+    import random
+    used_ids = {r[0] for r in db.session.query(Member.member_id).all()}
+    available = [i for i in range(100, 1000) if i not in used_ids]
+    new_member_id = random.choice(available) if available else 999
     import uuid
 
     member = Member(

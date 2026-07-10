@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}現場收款紀錄 — 寶榮堂花炮會{% endblock %}
+{% block page_title %}現場收款紀錄{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+  <h3>{{ year }}年 收款總額: ${{ total|int }}</h3>
+</div>
+<table>
+  <thead>
+    <tr>
+      <th>日期</th>
+      <th>會員</th>
+      <th>金額</th>
+      <th>付款方式</th>
+      <th>經手人</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in items %}
+    <tr>
+      <td>{{ item.created_at.strftime('%m-%d %H:%M') if item.created_at else '—' }}</td>
+      <td>{{ item.member_name or '—' }}</td>
+      <td>${{ item.amount|int }}</td>
+      <td>{{ item.payment_method or '—' }}</td>
+      <td>{{ item.handler or '—' }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--on-surface-variant)">暫無收款紀錄</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

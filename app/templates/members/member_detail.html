@@ -25,7 +25,7 @@
       <div class="flex-1 min-w-0">
         <div class="flex flex-wrap items-center gap-x-lg gap-y-sm mb-sm">
           <h2 class="font-headline-md" style="color: var(--on-surface); margin: 0;">{{ member.name }}</h2>
-          <span class="font-body-sm" style="color: var(--on-surface-variant);">#{{ member.member_id }}</span>
+          <span class="font-body-sm" style="color: var(--on-surface-variant);">#{{ "%03d"|format(member.member_id) }}</span>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">

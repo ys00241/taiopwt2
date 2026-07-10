@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}404 — 頁面不存在{% endblock %}
+{% block page_title %}404 — 頁面不存在{% endblock %}
+{% block content %}
+<div style="text-align:center;padding:80px 20px">
+  <div style="font-size:80px;margin-bottom:20px">🔍</div>
+  <h2>頁面不存在</h2>
+  <p style="color:var(--on-surface-variant);margin:16px 0">您所尋找的頁面不存在或已被移除。</p>
+  <a href="{{ url_for('dashboard.dashboard') }}" style="display:inline-flex;align-items:center;gap:8px;padding:10px 24px;background:var(--primary);color:#fff;border-radius:8px;text-decoration:none">← 返回儀表板</a>
+</div>
+{% endblock %}

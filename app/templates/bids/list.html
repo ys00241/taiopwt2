@@ -61,7 +61,7 @@
               </span>
             </td>
             <td style="color: var(--on-surface-variant); font-size: 0.8125rem;">
-              {{ bid.member.member_id if bid.member else '—' }}
+              {{ "%03d"|format(bid.member.member_id) if bid.member else "—" }}
             </td>
             <td>
               {% if bid.item %}

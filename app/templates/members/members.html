@@ -63,7 +63,7 @@
       <tbody>
         {% for m in members %}
         <tr class="member-row" style="cursor: pointer;" onclick="window.location.href='{{ url_for('members.member_detail', member_id=m.member_id) }}'">
-          <td style="font-weight: 600; color: var(--primary);">#{{ m.member_id }}</td>
+          <td style="font-weight: 600; color: var(--primary);">#{{ "%03d"|format(m.member_id) }}</td>
           <td>
             <div class="font-label-lg" style="color: var(--on-surface);">{{ m.name }}</div>
           </td>
@@ -141,7 +141,7 @@
           {% endif %}
         </div>
         <div class="flex items-center gap-sm mt-xs">
-          <span class="font-body-sm" style="color: var(--on-surface-variant);">#{{ m.member_id }}</span>
+          <span class="font-body-sm" style="color: var(--on-surface-variant);">#{{ "%03d"|format(m.member_id) }}</span>
           {% if m.phone %}
           <span class="font-body-sm" style="color: var(--on-surface-variant);">· {{ m.phone }}</span>
           {% endif %}
