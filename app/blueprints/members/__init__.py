@@ -187,7 +187,7 @@ def member_detail(member_id):
         )
 
     return render_template(
-        "member_detail.html",
+        "members/member_detail.html",
         member=member,
         bids=bid_list,
         total=[float(total_due), float(total_paid)],

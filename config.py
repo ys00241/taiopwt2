@@ -26,7 +26,7 @@ class Config:
     CSV_EXPORTS_DIR = str(BASE_DIR / "csv_exports")
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB
 
-    VERSION = "v2.0.0"
+    VERSION = "v2.0.1"
 
 
 class DevelopmentConfig(Config):
