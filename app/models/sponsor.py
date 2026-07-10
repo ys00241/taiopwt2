@@ -7,10 +7,14 @@ class Sponsor(db.Model):
 
     __tablename__ = "sponsors"
 
+    __table_args__ = (
+        db.Index("idx_sponsors_year", "year"),
+    )
+
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    year = db.Column(db.Integer, nullable=False, index=True, comment="年份")
+    year = db.Column(db.Integer, nullable=False, comment="年份")
     sponsor_name = db.Column(db.String(300), nullable=False, default="", comment="贊助者")
-    amount = db.Column(db.Float, default=0, comment="贊助金額")
+    amount = db.Column(db.Float, default=0, comment="贊助金額 (HKD)")
     item_name = db.Column(db.String(300), default="", comment="贊助聖物")
     details = db.Column(db.Text, default="", comment="詳情")
     created_at = db.Column(db.DateTime, server_default=db.func.now())

@@ -1,0 +1,469 @@
+{% extends "base.html" %}
+
+{% block title %}日記帳 — 寶榮堂花炮會{% endblock %}
+{% block page_title %}現金日記帳 Cashbook{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+
+  <!-- ═══ Running Balance ═══ -->
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-md mb-lg">
+    <div class="imperial-card">
+      <span class="font-label-md" style="color: var(--on-surface-variant);">總收入</span>
+      <div class="font-headline-lg" style="color: #166534;">
+        $<span id="totalIncome">{{ summary.total_income|default(0)|int }}</span>
+      </div>
+    </div>
+    <div class="imperial-card">
+      <span class="font-label-md" style="color: var(--on-surface-variant);">總支出</span>
+      <div class="font-headline-lg" style="color: var(--tertiary);">
+        $<span id="totalExpense">{{ summary.total_expense|default(0)|int }}</span>
+      </div>
+    </div>
+    <div class="imperial-card">
+      <span class="font-label-md" style="color: var(--on-surface-variant);">結餘 Balance</span>
+      <div class="font-headline-lg" id="balanceDisplay" style="color: {% if summary.balance|default(0) >= 0 %}#166534{% else %}var(--tertiary){% endif %};">
+        $<span id="balanceAmount">{{ summary.balance|default(0)|int }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Monthly Filter Tabs ═══ -->
+  <div class="flex items-center gap-xs mb-lg overflow-x-auto" style="scrollbar-width: none;">
+    <button class="month-tab {% if not month %}active{% endif %}"
+            onclick="filterMonth('')" data-month="">
+      全部
+    </button>
+    {% for m in range(1, 13) %}
+    {% set month_names = {1:'一月',2:'二月',3:'三月',4:'四月',5:'五月',6:'六月',7:'七月',8:'八月',9:'九月',10:'十月',11:'十一月',12:'十二月'} %}
+    <button class="month-tab {% if month == m %}active{% endif %}"
+            onclick="filterMonth({{ m }})" data-month="{{ m }}">
+      {{ month_names[m] }}
+    </button>
+    {% endfor %}
+  </div>
+
+  <!-- ═══ Tool Row ═══ -->
+  <div class="flex items-center justify-between mb-lg">
+    <div>
+      <span class="font-body-sm" style="color: var(--on-surface-variant);">
+        {{ year }}年度
+        {% if month %}· {{ month_names.get(month, '') }}{% endif %}
+      </span>
+    </div>
+    <div class="flex items-center gap-sm">
+      <button class="btn-secondary" onclick="exportCSV()">
+        <span class="material-symbols-outlined">download</span>
+        匯出 CSV
+      </button>
+      <button class="btn-primary" onclick="openAddModal()">
+        <span class="material-symbols-outlined">add</span>
+        新增記錄
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══ Entries List ═══ -->
+  <div class="imperial-card overflow-hidden !p-0" id="entriesContainer">
+    {% if entries %}
+    <div class="overflow-x-auto">
+      <table class="imperial-table">
+        <thead>
+          <tr>
+            <th>日期</th>
+            <th>類型</th>
+            <th>類別</th>
+            <th>項目</th>
+            <th style="text-align: right;">金額</th>
+            <th>付款方式</th>
+            <th>經手人</th>
+            <th>備註</th>
+            <th style="text-align: center;">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in entries %}
+          <tr>
+            <td style="white-space: nowrap;">{{ entry.entry_date }}</td>
+            <td>
+              {% if entry.entry_type == 'income' %}
+              <span class="flex items-center gap-xs" style="color: #166534;">
+                <span class="material-symbols-outlined" style="font-size: 1.125rem;">arrow_upward</span>
+                <span>收入</span>
+              </span>
+              {% else %}
+              <span class="flex items-center gap-xs" style="color: var(--tertiary);">
+                <span class="material-symbols-outlined" style="font-size: 1.125rem;">arrow_downward</span>
+                <span>支出</span>
+              </span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="chip {% if entry.entry_type == 'income' %}chip-gold{% else %}chip-red{% endif %}">
+                {{ entry.category or '—' }}
+              </span>
+            </td>
+            <td style="max-width: 200px;">
+              <span class="font-body-md" style="font-weight: 500;">{{ entry.subject }}</span>
+            </td>
+            <td style="text-align: right; font-weight: 600; white-space: nowrap;
+                       {% if entry.entry_type == 'income' %}color: #166534;{% else %}color: var(--tertiary);{% endif %}">
+              {{ "+" if entry.entry_type == 'income' else "-" }}${{ entry.amount|int }}
+            </td>
+            <td>{{ entry.payment_method or '—' }}</td>
+            <td>{{ entry.handler or '—' }}</td>
+            <td style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--on-surface-variant);">
+              {{ entry.notes or '—' }}
+            </td>
+            <td style="text-align: center;">
+              <div class="flex items-center justify-center gap-xs">
+                <button class="icon-btn" onclick="openEditModal({{ entry.id }})" title="編輯">
+                  <span class="material-symbols-outlined" style="font-size: 1.125rem;">edit</span>
+                </button>
+                <button class="icon-btn" onclick="deleteEntry({{ entry.id }})" title="刪除" style="color: var(--tertiary);">
+                  <span class="material-symbols-outlined" style="font-size: 1.125rem;">delete</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="flex flex-col items-center py-xl" style="color: var(--on-surface-variant);">
+      <span class="material-symbols-outlined" style="font-size: 2.5rem; margin-bottom: 0.5rem;">book</span>
+      <p class="font-body-md">暫無日記帳記錄</p>
+      <p class="font-body-sm mt-xs">點擊「新增記錄」開始記帳</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ═══ ADD / EDIT MODAL ═══ -->
+  <div id="entryModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="flex items-center justify-between mb-lg">
+        <h2 class="font-headline-md" id="modalTitle" style="color: var(--on-surface);">新增記錄</h2>
+        <button class="icon-btn" onclick="closeModal()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <form id="entryForm" class="space-y-md">
+        <input type="hidden" id="entryId" value="">
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-md">
+          <!-- Entry Date -->
+          <div>
+            <label class="form-label" for="entryDate">日期 *</label>
+            <input type="date" id="entryDate" class="form-input" required>
+          </div>
+
+          <!-- Type Toggle -->
+          <div>
+            <label class="form-label">類型 *</label>
+            <div class="flex gap-sm">
+              <button type="button" class="type-btn income active" data-type="income"
+                      onclick="setType('income')">
+                <span class="material-symbols-outlined">arrow_upward</span>
+                收入
+              </button>
+              <button type="button" class="type-btn expense" data-type="expense"
+                      onclick="setType('expense')">
+                <span class="material-symbols-outlined">arrow_downward</span>
+                支出
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Category -->
+        <div>
+          <label class="form-label" for="entryCategory">類別</label>
+          <select id="entryCategory" class="form-input">
+            <option value="">— 請選擇 —</option>
+            <optgroup label="收入類別">
+              <option value="利息">利息</option>
+              <option value="香油">香油</option>
+              <option value="捐獻">捐獻</option>
+              <option value="會費">會費</option>
+              <option value="其他收入">其他收入</option>
+            </optgroup>
+            <optgroup label="支出類別">
+              <option value="伙食">伙食</option>
+              <option value="車馬">車馬</option>
+              <option value="衣紙">衣紙</option>
+              <option value="雜項">雜項</option>
+              <option value="其他支出">其他支出</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <!-- Subject -->
+        <div>
+          <label class="form-label" for="entrySubject">項目 *</label>
+          <input type="text" id="entrySubject" class="form-input" placeholder="例如：標金收入、購買祭品" required>
+        </div>
+
+        <!-- Amount -->
+        <div>
+          <label class="form-label" for="entryAmount">金額 (HKD) *</label>
+          <input type="number" id="entryAmount" class="form-input" placeholder="0" min="0" step="0.01" required>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-md">
+          <!-- Payment Method -->
+          <div>
+            <label class="form-label" for="entryPaymentMethod">付款方式</label>
+            <select id="entryPaymentMethod" class="form-input">
+              <option value="">— 請選擇 —</option>
+              <option value="現金">現金</option>
+              <option value="支票">支票</option>
+              <option value="轉數快">轉數快</option>
+              <option value="銀行轉賬">銀行轉賬</option>
+            </select>
+          </div>
+
+          <!-- Handler -->
+          <div>
+            <label class="form-label" for="entryHandler">經手人</label>
+            <input type="text" id="entryHandler" class="form-input" placeholder="經手人姓名">
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div>
+          <label class="form-label" for="entryNotes">備註</label>
+          <textarea id="entryNotes" class="form-input" rows="2" placeholder="備註..."></textarea>
+        </div>
+
+        <div class="flex items-center justify-end gap-sm pt-sm">
+          <button type="button" class="btn-secondary" onclick="closeModal()">取消</button>
+          <button type="submit" class="btn-primary">儲存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modalBackdrop" class="modal-backdrop hidden" onclick="closeModal()"></div>
+
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+  /* ── Modal ── */
+  .modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+  .modal-card {
+    position: relative;
+    z-index: 201;
+    width: 100%;
+    max-width: 560px;
+    max-height: 90vh;
+    overflow-y: auto;
+    background: var(--surface);
+    border: 1px solid var(--outline-variant);
+    border-radius: 1.25rem;
+    padding: 1.5rem;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.15);
+  }
+  .modal-backdrop {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 199;
+    background: rgba(0,0,0,0.3);
+  }
+  .hidden { display: none !important; }
+
+  /* ── Month Tabs ── */
+  .month-tab {
+    padding: 0.375rem 0.875rem;
+    border-radius: 8px;
+    border: 1px solid var(--outline-variant);
+    background: var(--surface);
+    color: var(--on-surface-variant);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .month-tab:hover {
+    background: var(--surface-container);
+  }
+  .month-tab.active {
+    background: var(--primary);
+    color: var(--on-primary);
+    border-color: var(--primary);
+  }
+
+  /* ── Type Buttons ── */
+  .type-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    border-radius: 10px;
+    border: 2px solid var(--outline-variant);
+    background: var(--surface);
+    color: var(--on-surface-variant);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .type-btn .material-symbols-outlined { font-size: 1.125rem; }
+  .type-btn.income.active {
+    border-color: #166534;
+    background: #f0fdf4;
+    color: #166534;
+  }
+  .type-btn.expense.active {
+    border-color: var(--tertiary);
+    background: #fef2f2;
+    color: var(--tertiary);
+  }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ══════════════════════════════════════════
+//  State
+// ══════════════════════════════════════════
+let entryType = 'income';
+const monthNames = {1:'一月',2:'二月',3:'三月',4:'四月',5:'五月',6:'六月',7:'七月',8:'八月',9:'九月',10:'十月',11:'十一月',12:'十二月'};
+
+// ══════════════════════════════════════════
+//  Month filter
+// ══════════════════════════════════════════
+function filterMonth(m) {
+  const url = new URL(window.location.href);
+  if (m) {
+    url.searchParams.set('month', m);
+  } else {
+    url.searchParams.delete('month');
+  }
+  window.location.href = url.toString();
+}
+
+// ══════════════════════════════════════════
+//  Modal
+// ══════════════════════════════════════════
+function openAddModal() {
+  document.getElementById('modalTitle').textContent = '新增記錄';
+  document.getElementById('entryForm').reset();
+  document.getElementById('entryId').value = '';
+  document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
+  setType('income');
+  document.getElementById('entryModal').classList.remove('hidden');
+  document.getElementById('modalBackdrop').classList.remove('hidden');
+}
+
+function openEditModal(id) {
+  // For now, show a placeholder — real data would come from API
+  document.getElementById('modalTitle').textContent = '編輯記錄 #' + id;
+  document.getElementById('entryId').value = id;
+  document.getElementById('entryModal').classList.remove('hidden');
+  document.getElementById('modalBackdrop').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('entryModal').classList.add('hidden');
+  document.getElementById('modalBackdrop').classList.add('hidden');
+}
+
+function setType(type) {
+  entryType = type;
+  document.querySelectorAll('.type-btn').forEach(function(btn) {
+    btn.classList.toggle('active', btn.dataset.type === type);
+  });
+  // Update category dropdown based on type
+  const catSelect = document.getElementById('entryCategory');
+  const incomeOpts = ['利息', '香油', '捐獻', '會費', '其他收入'];
+  const expenseOpts = ['伙食', '車馬', '衣紙', '雜項', '其他支出'];
+  const opts = type === 'income' ? incomeOpts : expenseOpts;
+  // We keep the optgroups but set a hint
+}
+
+// ══════════════════════════════════════════
+//  Form submit
+// ══════════════════════════════════════════
+document.getElementById('entryForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const id = document.getElementById('entryId').value;
+  const data = {
+    entry_date: document.getElementById('entryDate').value,
+    entry_type: entryType,
+    category: document.getElementById('entryCategory').value,
+    subject: document.getElementById('entrySubject').value,
+    amount: parseFloat(document.getElementById('entryAmount').value) || 0,
+    payment_method: document.getElementById('entryPaymentMethod').value,
+    handler: document.getElementById('entryHandler').value,
+    notes: document.getElementById('entryNotes').value,
+  };
+
+  const isEdit = !!id;
+  const url = isEdit ? '/cashbook/' + id + '/edit' : '/cashbook/add';
+  const method = 'POST';
+
+  fetch(url, {
+    method: method,
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data),
+  })
+  .then(r => r.json())
+  .then(result => {
+    if (result.ok) {
+      closeModal();
+      window.location.reload();
+    } else {
+      alert('錯誤: ' + (result.error || '操作失敗'));
+    }
+  })
+  .catch(function(err) {
+    alert('網絡錯誤: ' + err.message);
+  });
+});
+
+// ══════════════════════════════════════════
+//  Delete
+// ══════════════════════════════════════════
+function deleteEntry(id) {
+  if (!confirm('確定刪除此記錄？')) return;
+  fetch('/cashbook/' + id + '/delete', { method: 'POST' })
+    .then(r => r.json())
+    .then(function(result) {
+      if (result.ok) {
+        window.location.reload();
+      } else {
+        alert('錯誤: ' + (result.error || '刪除失敗'));
+      }
+    })
+    .catch(function(err) {
+      alert('網絡錯誤: ' + err.message);
+    });
+}
+
+// ══════════════════════════════════════════
+//  Export CSV
+// ══════════════════════════════════════════
+function exportCSV() {
+  const url = new URL(window.location.href);
+  const exportUrl = '/cashbook/export' + url.search;
+  window.location.href = exportUrl;
+}
+</script>
+{% endblock %}

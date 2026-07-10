@@ -1,0 +1,359 @@
+{% extends "base.html" %}
+
+{% block title %}系統管理 — 寶榮堂花炮會{% endblock %}
+{% block page_title %}系統管理 Admin{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+
+  <p class="font-body-sm mb-lg" style="color: var(--on-surface-variant);">
+    資料匯入、匯出、備份與還原
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-lg">
+
+    <!-- ═══ IMPORT ═══ -->
+    <div class="imperial-card">
+      <div class="flex items-center gap-sm mb-md">
+        <span class="material-symbols-outlined" style="color: var(--primary);">file_upload</span>
+        <h2 class="font-headline-md" style="color: var(--on-surface);">匯入資料 Import</h2>
+      </div>
+      <p class="font-body-sm mb-md" style="color: var(--on-surface-variant);">
+        從 CSV 檔案匯入資料到指定資料表。支援的資料表：
+      </p>
+
+      <div class="mb-md">
+        <span class="form-label">選擇資料表</span>
+        <select id="importTable" class="form-input">
+          <option value="">— 請選擇 —</option>
+          {% for t in import_tables %}
+          <option value="{{ t }}">{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="mb-md">
+        <span class="form-label">上傳 CSV 檔案</span>
+        <div id="importDropZone"
+             class="flex flex-col items-center justify-center p-lg border-2 border-dashed rounded-xl"
+             style="border-color: var(--outline-variant); background: var(--surface-container); cursor: pointer;"
+             onclick="document.getElementById('importFile').click()">
+          <span class="material-symbols-outlined mb-sm" style="font-size: 2rem; color: var(--on-surface-variant);">cloud_upload</span>
+          <p class="font-body-md" style="color: var(--on-surface-variant);">點擊或拖曳 CSV 檔案到此處</p>
+          <p class="font-body-sm" style="color: var(--on-surface-variant); opacity: 0.6;">支援 .csv 格式 (UTF-8)</p>
+          <input type="file" id="importFile" accept=".csv" class="hidden" onchange="handleImportFile(this.files[0])">
+        </div>
+        <div id="importFileInfo" class="hidden mt-sm font-body-sm" style="color: var(--primary);"></div>
+      </div>
+
+      <button id="importBtn" class="btn-primary w-full justify-center" onclick="doImport()">
+        <span class="material-symbols-outlined">upload</span>
+        開始匯入
+      </button>
+
+      <div id="importResult" class="hidden mt-md"></div>
+    </div>
+
+    <!-- ═══ EXPORT ═══ -->
+    <div class="imperial-card">
+      <div class="flex items-center gap-sm mb-md">
+        <span class="material-symbols-outlined" style="color: var(--primary);">file_download</span>
+        <h2 class="font-headline-md" style="color: var(--on-surface);">匯出資料 Export</h2>
+      </div>
+      <p class="font-body-sm mb-md" style="color: var(--on-surface-variant);">
+        將資料表匯出為 CSV 檔案，可按年份篩選。
+      </p>
+
+      <div class="mb-md">
+        <span class="form-label">選擇資料表</span>
+        <select id="exportTable" class="form-input">
+          <option value="">— 請選擇 —</option>
+          {% for t in export_tables %}
+          <option value="{{ t }}">{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="mb-md">
+        <span class="form-label">年份篩選 (可選)</span>
+        <select id="exportYear" class="form-input">
+          <option value="">全部年份</option>
+          {% for y in range(current_year, current_year - 5, -1) %}
+          <option value="{{ y }}">{{ y }}年</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <button id="exportBtn" class="btn-primary w-full justify-center" onclick="doExport()">
+        <span class="material-symbols-outlined">download</span>
+        匯出 CSV
+      </button>
+    </div>
+
+    <!-- ═══ BACKUP ═══ -->
+    <div class="imperial-card">
+      <div class="flex items-center gap-sm mb-md">
+        <span class="material-symbols-outlined" style="color: var(--primary);">backup</span>
+        <h2 class="font-headline-md" style="color: var(--on-surface);">備份 Backup</h2>
+      </div>
+      <p class="font-body-sm mb-md" style="color: var(--on-surface-variant);">
+        下載完整備份 (ZIP 格式)，包含 SQLite 資料庫檔案及所有資料表 CSV。
+      </p>
+
+      <a href="{{ url_for('manage.backup_zip') }}" class="btn-primary w-full justify-center">
+        <span class="material-symbols-outlined">folder_zip</span>
+        下載備份 ZIP
+      </a>
+    </div>
+
+    <!-- ═══ RESTORE ═══ -->
+    <div class="imperial-card">
+      <div class="flex items-center gap-sm mb-md">
+        <span class="material-symbols-outlined" style="color: var(--tertiary);">restore_page</span>
+        <h2 class="font-headline-md" style="color: var(--on-surface);">還原 Restore</h2>
+      </div>
+      <p class="font-body-sm mb-md" style="color: var(--on-surface-variant);">
+        上傳備份 ZIP 檔案以還原資料。會嘗試匯入所有支援的 CSV 資料表。
+      </p>
+
+      <div class="mb-md">
+        <div id="restoreDropZone"
+             class="flex flex-col items-center justify-center p-lg border-2 border-dashed rounded-xl"
+             style="border-color: var(--outline-variant); background: var(--surface-container); cursor: pointer;"
+             onclick="document.getElementById('restoreFile').click()">
+          <span class="material-symbols-outlined mb-sm" style="font-size: 2rem; color: var(--on-surface-variant);">folder_open</span>
+          <p class="font-body-md" style="color: var(--on-surface-variant);">點擊或拖曳 ZIP 檔案到此處</p>
+          <p class="font-body-sm" style="color: var(--on-surface-variant); opacity: 0.6;">支援 .zip 格式</p>
+          <input type="file" id="restoreFile" accept=".zip" class="hidden" onchange="handleRestoreFile(this.files[0])">
+        </div>
+        <div id="restoreFileInfo" class="hidden mt-sm font-body-sm" style="color: var(--primary);"></div>
+      </div>
+
+      <button id="restoreBtn" class="btn-tertiary w-full justify-center" onclick="doRestore()">
+        <span class="material-symbols-outlined">upload_file</span>
+        開始還原
+      </button>
+
+      <div id="restoreResult" class="hidden mt-md"></div>
+    </div>
+
+  </div>
+
+  <!-- ═══ Allowed Tables Reference ═══ -->
+  <div class="imperial-card mt-lg">
+    <h2 class="font-headline-md mb-md" style="color: var(--on-surface);">資料表說明 Tables</h2>
+    <div class="overflow-x-auto">
+      <table class="imperial-table">
+        <thead>
+          <tr>
+            <th>資料表</th>
+            <th>可匯入</th>
+            <th>可匯出</th>
+            <th>說明</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in export_tables %}
+          <tr>
+            <td class="font-label-lg">{{ t }}</td>
+            <td>
+              {% if t in import_tables %}
+              <span class="chip chip-green">是</span>
+              {% else %}
+              <span class="chip chip-red">否</span>
+              {% endif %}
+            </td>
+            <td><span class="chip chip-green">是</span></td>
+            <td style="color: var(--on-surface-variant);">
+              {% set descriptions = {
+                'members': '會員資料',
+                'editions': '屆別/年份',
+                'items': '聖物項目',
+                'bids': '投標記錄',
+                'pl': '損益表',
+                'this_year_items': '今年聖物',
+                'expenses': '支出記錄',
+                'sponsors': '贊助記錄',
+                'live_income': '即時收入',
+                'daily_entries': '日記帳',
+              } %}
+              {{ descriptions.get(t, '—') }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+  .hidden { display: none !important; }
+  #importDropZone.drag-over,
+  #restoreDropZone.drag-over {
+    border-color: var(--primary) !important;
+    background: var(--surface-container-high) !important;
+  }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ══════════════════════════════════════════
+//  Import
+// ══════════════════════════════════════════
+let importFileData = null;
+let restoreFileData = null;
+
+document.getElementById('importDropZone').addEventListener('dragover', function(e) {
+  e.preventDefault();
+  this.classList.add('drag-over');
+});
+document.getElementById('importDropZone').addEventListener('dragleave', function(e) {
+  this.classList.remove('drag-over');
+});
+document.getElementById('importDropZone').addEventListener('drop', function(e) {
+  e.preventDefault();
+  this.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.name.endsWith('.csv')) {
+    handleImportFile(file);
+  }
+});
+
+function handleImportFile(file) {
+  if (!file) return;
+  importFileData = file;
+  const info = document.getElementById('importFileInfo');
+  info.textContent = '已選擇: ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+  info.classList.remove('hidden');
+}
+
+function doImport() {
+  const table = document.getElementById('importTable').value;
+  if (!table) { alert('請選擇資料表'); return; }
+  if (!importFileData) { alert('請選擇 CSV 檔案'); return; }
+
+  const formData = new FormData();
+  formData.append('file', importFileData);
+
+  const btn = document.getElementById('importBtn');
+  const result = document.getElementById('importResult');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="material-symbols-outlined">sync</span> 匯入中...';
+  result.classList.remove('hidden');
+  result.innerHTML = '<p class="font-body-sm" style="color: var(--on-surface-variant);">處理中，請稍候...</p>';
+
+  fetch('/manage/import/' + table, { method: 'POST', body: formData })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        result.innerHTML = '<div class="chip chip-green" style="padding: 0.5rem 1rem;">✓ 成功匯入 ' + data.imported + ' 筆記錄</div>';
+      } else {
+        result.innerHTML = '<div class="chip chip-red" style="padding: 0.5rem 1rem;">✗ ' + (data.error || '匯入失敗') + '</div>';
+      }
+      if (data.errors && data.errors.length) {
+        result.innerHTML += '<div class="mt-sm font-body-sm" style="color: var(--tertiary);">錯誤: ' + data.errors.join(', ') + '</div>';
+      }
+    })
+    .catch(err => {
+      result.innerHTML = '<div class="chip chip-red" style="padding: 0.5rem 1rem;">✗ 網絡錯誤: ' + err.message + '</div>';
+    })
+    .finally(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-symbols-outlined">upload</span> 開始匯入';
+    });
+}
+
+// ══════════════════════════════════════════
+//  Export
+// ══════════════════════════════════════════
+function doExport() {
+  const table = document.getElementById('exportTable').value;
+  if (!table) { alert('請選擇資料表'); return; }
+
+  const year = document.getElementById('exportYear').value;
+  let url = '/manage/export/' + table;
+  if (year) url += '?year=' + year;
+  window.location.href = url;
+}
+
+// ══════════════════════════════════════════
+//  Restore
+// ══════════════════════════════════════════
+document.getElementById('restoreDropZone').addEventListener('dragover', function(e) {
+  e.preventDefault();
+  this.classList.add('drag-over');
+});
+document.getElementById('restoreDropZone').addEventListener('dragleave', function(e) {
+  this.classList.remove('drag-over');
+});
+document.getElementById('restoreDropZone').addEventListener('drop', function(e) {
+  e.preventDefault();
+  this.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.name.endsWith('.zip')) {
+    handleRestoreFile(file);
+  }
+});
+
+function handleRestoreFile(file) {
+  if (!file) return;
+  restoreFileData = file;
+  const info = document.getElementById('restoreFileInfo');
+  info.textContent = '已選擇: ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+  info.classList.remove('hidden');
+}
+
+function doRestore() {
+  if (!restoreFileData) { alert('請選擇 ZIP 備份檔案'); return; }
+
+  const formData = new FormData();
+  formData.append('file', restoreFileData);
+
+  const btn = document.getElementById('restoreBtn');
+  const result = document.getElementById('restoreResult');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="material-symbols-outlined">sync</span> 還原中...';
+  result.classList.remove('hidden');
+  result.innerHTML = '<p class="font-body-sm" style="color: var(--on-surface-variant);">處理中，請稍候...</p>';
+
+  fetch('/manage/restore', { method: 'POST', body: formData })
+    .then(r => r.json())
+    .then(data => {
+      let html = '';
+      if (data.ok) {
+        html += '<div class="chip chip-green" style="padding: 0.5rem 1rem; display: block;">✓ 還原完成</div>';
+      } else {
+        html += '<div class="chip chip-red" style="padding: 0.5rem 1rem; display: block;">✗ 還原失敗</div>';
+      }
+      if (data.tables_restored && data.tables_restored.length) {
+        html += '<div class="mt-sm font-body-sm" style="color: var(--on-surface);">已還原資料表:</div>';
+        data.tables_restored.forEach(function(t) {
+          html += '<div class="font-body-sm" style="color: #166534;">• ' + t.table + ': ' + t.rows + ' 行</div>';
+        });
+      }
+      if (data.tables_skipped && data.tables_skipped.length) {
+        html += '<div class="mt-sm font-body-sm" style="color: var(--on-surface-variant);">跳過: ' + data.tables_skipped.join(', ') + '</div>';
+      }
+      if (data.errors && data.errors.length) {
+        html += '<div class="mt-sm font-body-sm" style="color: var(--tertiary);">錯誤:</div>';
+        data.errors.forEach(function(e) {
+          html += '<div class="font-body-sm" style="color: var(--tertiary);">• ' + e + '</div>';
+        });
+      }
+      result.innerHTML = html;
+    })
+    .catch(err => {
+      result.innerHTML = '<div class="chip chip-red" style="padding: 0.5rem 1rem;">✗ 網絡錯誤: ' + err.message + '</div>';
+    })
+    .finally(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-symbols-outlined">upload_file</span> 開始還原';
+    });
+}
+</script>
+{% endblock %}

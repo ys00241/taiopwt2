@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+
+{% block title %}屆別管理 — 寶榮堂花炮會{% endblock %}
+{% block page_title %}屆別管理{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+
+  <!-- ═══ Header ═══ -->
+  <div class="flex items-center justify-between mb-lg">
+    <span class="font-body-sm" style="color: var(--on-surface-variant);">{{ editions|length }} 屆</span>
+  </div>
+
+  <!-- ═══ Desktop Table ═══ -->
+  <div class="imperial-card hidden md:block p-0" style="overflow-x: auto;">
+    <table class="imperial-table">
+      <thead>
+        <tr>
+          <th>屆數</th>
+          <th>年份</th>
+          <th>活動日期</th>
+          <th>場地</th>
+          <th style="text-align: right;">席數</th>
+          <th>歌星</th>
+          <th style="text-align: right;">競投次數</th>
+          <th style="text-align: right;">競投總額</th>
+          <th style="text-align: right;">未繳總額</th>
+          <th style="width: 70px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ed in editions %}
+        <tr>
+          <td>
+            <span class="font-label-lg" style="color: var(--on-surface);">
+              {% if ed.edition_no %}第 {{ ed.edition_no }} 屆{% else %}—{% endif %}
+            </span>
+          </td>
+          <td>
+            <span class="chip chip-gold">{{ ed.year }} 年</span>
+          </td>
+          <td>
+            {% if ed.event_date %}
+            <span class="font-body-md">{{ ed.event_date }}</span>
+            {% else %}
+            <span style="color: var(--on-surface-variant);">—</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="truncate" style="max-width: 140px;" title="{{ ed.venue }}">
+              {{ ed.venue or '—' }}
+            </div>
+          </td>
+          <td style="text-align: right;">{{ ed.tables }}</td>
+          <td>
+            {% if ed.singer %}
+            <span class="font-body-sm">{{ ed.singer }}</span>
+            {% else %}
+            <span style="color: var(--on-surface-variant);">—</span>
+            {% endif %}
+          </td>
+          <td style="text-align: right;">
+            <span class="font-body-md">{{ ed.bid_count }}</span>
+          </td>
+          <td style="text-align: right; font-weight: 500;">
+            ${{ ed.bid_total|int }}
+          </td>
+          <td style="text-align: right;">
+            {% if ed.unpaid_total > 0 %}
+            <span style="color: var(--tertiary); font-weight: 600;">${{ ed.unpaid_total|int }}</span>
+            {% else %}
+            <span style="color: var(--on-surface-variant);">$0</span>
+            {% endif %}
+          </td>
+          <td>
+            <button class="icon-btn" onclick="openEditModal('{{ ed.id }}', {{ ed.edition_no|tojson }}, {{ ed.year }},
+              {{ ed.event_date|tojson }}, {{ ed.venue|tojson }}, {{ ed.tables }},
+              {{ ed.singer|tojson }}, {{ ed.remarks|tojson }})"
+                    title="編輯">
+              <span class="material-symbols-outlined" style="font-size: 1.125rem;">edit</span>
+            </button>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="10" style="text-align: center; padding: 3rem 1rem; color: var(--on-surface-variant);">
+            <div class="flex flex-col items-center gap-sm">
+              <span class="material-symbols-outlined" style="font-size: 2.5rem;">calendar_month</span>
+              <p class="font-body-md">暫無屆別記錄</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══ Mobile Card View ═══ -->
+  <div class="md:hidden flex flex-col gap-sm">
+    {% for ed in editions %}
+    <div class="imperial-card">
+      <div class="flex items-start justify-between mb-sm">
+        <div>
+          <div class="flex items-center gap-sm mb-xs">
+            <span class="chip chip-gold">{{ ed.year }} 年</span>
+            {% if ed.edition_no %}
+            <span class="font-body-sm" style="color: var(--on-surface-variant);">第 {{ ed.edition_no }} 屆</span>
+            {% endif %}
+          </div>
+          <div class="font-label-lg" style="color: var(--on-surface);">
+            {{ ed.event_date or '日期待定' }}
+          </div>
+          {% if ed.venue %}
+          <div class="font-body-sm" style="color: var(--on-surface-variant);">{{ ed.venue }}</div>
+          {% endif %}
+        </div>
+        <button class="icon-btn shrink-0" onclick="openEditModal('{{ ed.id }}', {{ ed.edition_no|tojson }}, {{ ed.year }},
+          {{ ed.event_date|tojson }}, {{ ed.venue|tojson }}, {{ ed.tables }},
+          {{ ed.singer|tojson }}, {{ ed.remarks|tojson }})">
+          <span class="material-symbols-outlined">edit</span>
+        </button>
+      </div>
+      <div class="flex items-center gap-lg pt-sm" style="border-top: 1px solid var(--outline-variant);">
+        <div>
+          <span class="font-label-md" style="color: var(--on-surface-variant);">席數</span>
+          <div class="font-body-md">{{ ed.tables }}</div>
+        </div>
+        {% if ed.singer %}
+        <div>
+          <span class="font-label-md" style="color: var(--on-surface-variant);">歌星</span>
+          <div class="font-body-md">{{ ed.singer }}</div>
+        </div>
+        {% endif %}
+        <div>
+          <span class="font-label-md" style="color: var(--on-surface-variant);">競投</span>
+          <div class="font-body-md" style="font-weight: 500;">${{ ed.bid_total|int }}</div>
+        </div>
+        <div>
+          <span class="font-label-md" style="color: var(--on-surface-variant);">未繳</span>
+          <div class="font-body-md" style="color: var(--tertiary); font-weight: 600;">${{ ed.unpaid_total|int }}</div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="flex flex-col items-center py-xl" style="color: var(--on-surface-variant);">
+      <span class="material-symbols-outlined" style="font-size: 2.5rem; margin-bottom: 0.5rem;">calendar_month</span>
+      <p class="font-body-md">暫無屆別記錄</p>
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+
+<!-- ═══ Edit Edition Modal ═══ -->
+<div id="editEditionModal" class="modal-overlay" style="display: none;">
+  <div class="modal-container" style="max-width: 500px;">
+    <div class="flex items-center justify-between mb-lg">
+      <h2 class="font-headline-md" style="color: var(--on-surface);">編輯屆別</h2>
+      <button class="icon-btn" onclick="closeEditModal()">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <form id="editEditionForm" onsubmit="submitEditEdition(event)">
+      <input type="hidden" id="edit_id" name="edition_id">
+      <div class="flex flex-col gap-md">
+        <div class="flex items-center gap-md mb-sm">
+          <span id="edit_display" class="font-headline-sm" style="color: var(--primary);"></span>
+        </div>
+        <div>
+          <label class="form-label" for="edit_event_date">活動日期</label>
+          <input class="form-input" type="text" id="edit_event_date" name="event_date"
+                 placeholder="e.g. 2025-02-12">
+        </div>
+        <div>
+          <label class="form-label" for="edit_venue">場地</label>
+          <input class="form-input" type="text" id="edit_venue" name="venue"
+                 placeholder="活動場地名稱">
+        </div>
+        <div class="grid grid-cols-2 gap-md">
+          <div>
+            <label class="form-label" for="edit_tables">席數</label>
+            <input class="form-input" type="number" id="edit_tables" name="tables" min="0"
+                   placeholder="0">
+          </div>
+          <div>
+            <label class="form-label" for="edit_singer">歌星</label>
+            <input class="form-input" type="text" id="edit_singer" name="singer"
+                   placeholder="表演歌星">
+          </div>
+        </div>
+        <div>
+          <label class="form-label" for="edit_remarks">備註</label>
+          <textarea class="form-input" id="edit_remarks" name="remarks" rows="3"
+                    placeholder="備註事項" style="resize: vertical;"></textarea>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-sm mt-lg">
+        <button type="button" class="btn-secondary" onclick="closeEditModal()">取消</button>
+        <button type="submit" class="btn-primary">
+          <span class="material-symbols-outlined">save</span>
+          儲存
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ Toast ═══ -->
+<div id="editToast" style="display: none; position: fixed; bottom: 6rem; left: 50%; transform: translateX(-50%);
+     background: var(--inverse-surface); color: var(--surface); padding: 0.75rem 1.5rem; border-radius: 10px;
+     font-family: 'Inter', sans-serif; font-size: 0.875rem; z-index: 999; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+    padding: 1rem;
+  }
+  .modal-container {
+    background: var(--surface);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  }
+</style>
+<script>
+  // ── Edit Modal ──
+  let currentEditionId = null;
+
+  function openEditModal(id, editionNo, year, eventDate, venue, tables, singer, remarks) {
+    currentEditionId = id;
+    document.getElementById('edit_id').value = id;
+
+    const display = document.getElementById('edit_display');
+    const editionLabel = editionNo ? '第 ' + editionNo + ' 屆' : '—';
+    display.textContent = editionLabel + ' — ' + year + ' 年';
+
+    document.getElementById('edit_event_date').value = eventDate || '';
+    document.getElementById('edit_venue').value = venue || '';
+    document.getElementById('edit_tables').value = tables || 0;
+    document.getElementById('edit_singer').value = singer || '';
+    document.getElementById('edit_remarks').value = remarks || '';
+
+    document.getElementById('editEditionModal').style.display = 'flex';
+  }
+
+  function closeEditModal() {
+    document.getElementById('editEditionModal').style.display = 'none';
+    document.getElementById('editEditionForm').reset();
+    currentEditionId = null;
+  }
+
+  async function submitEditEdition(e) {
+    e.preventDefault();
+    const form = e.target;
+    const formData = new FormData(form);
+    const editionId = formData.get('edition_id');
+
+    if (!editionId) {
+      alert('錯誤: 缺少屆別ID');
+      return;
+    }
+
+    try {
+      const resp = await fetch('/editions/' + editionId + '/edit', {
+        method: 'POST', body: formData
+      });
+      const data = await resp.json();
+      const toast = document.getElementById('editToast');
+      if (data.ok) {
+        toast.textContent = '✅ 已成功更新';
+        toast.style.display = 'block';
+        closeEditModal();
+        setTimeout(function () {
+          toast.style.display = 'none';
+          window.location.reload();
+        }, 1500);
+      } else {
+        toast.textContent = '❌ ' + (data.error || '更新失敗');
+        toast.style.display = 'block';
+        setTimeout(function () { toast.style.display = 'none'; }, 3000);
+      }
+    } catch (err) {
+      alert('網絡錯誤，請重試');
+    }
+  }
+
+  // Close modal on overlay click
+  document.addEventListener('DOMContentLoaded', function () {
+    const overlay = document.getElementById('editEditionModal');
+    overlay.addEventListener('click', function (e) {
+      if (e.target === this) closeEditModal();
+    });
+  });
+</script>
+{% endblock %}

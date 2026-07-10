@@ -1,0 +1,12 @@
+{% macro stat_card(title, value, icon, color, trend=None) %}
+<div class="imperial-card rounded-xl p-xl">
+  <div class="flex justify-between items-start mb-sm">
+    <span class="font-label-md text-on-surface-variant">{{ title }}</span>
+    <span class="material-symbols-outlined" style="color: {{ color }}; font-size: 1.5rem;">{{ icon }}</span>
+  </div>
+  <span class="font-headline-xl block" style="color: {{ color }};">{{ value }}</span>
+  {% if trend %}
+  <small class="font-body-sm text-on-surface-variant mt-xs block">{{ trend }}</small>
+  {% endif %}
+</div>
+{% endmacro %}

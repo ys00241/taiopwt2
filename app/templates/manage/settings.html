@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>設定 — 寶榮堂花炮會管理系統</title>
+  <link href="https://cdn.tailwindcss.com" rel="stylesheet">
+</head>
+<body class="bg-gray-50">
+  <div class="container mx-auto px-4 py-8">
+    <h1 class="text-2xl font-bold mb-6">系統設定</h1>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="mb-4 p-3 rounded {% if category == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
+      {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+    
+    <div class="bg-white rounded-lg shadow p-6 max-w-md">
+      <h2 class="text-lg font-semibold mb-4">修改密碼</h2>
+      <form method="POST" action="{{ url_for('manage.settings') }}">
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-1">當前密碼</label>
+          <input type="password" name="current_password" required class="w-full border rounded px-3 py-2">
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-1">新密碼</label>
+          <input type="password" name="new_password" required class="w-full border rounded px-3 py-2">
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-1">確認新密碼</label>
+          <input type="password" name="confirm_password" required class="w-full border rounded px-3 py-2">
+        </div>
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">更新密碼</button>
+      </form>
+    </div>
+    
+    <div class="mt-8">
+      <a href="{{ url_for('dashboard.dashboard') }}" class="text-blue-600 hover:underline">← 返回儀表板</a>
+    </div>
+  </div>
+</body>
+</html>

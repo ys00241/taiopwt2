@@ -1,0 +1,361 @@
+{% extends "base.html" %}
+
+{% block title %}會員管理 — 寶榮堂花炮會{% endblock %}
+{% block page_title %}會員管理{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+
+  <!-- ═══ Toolbar ═══ -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-md mb-lg">
+    <div class="flex flex-wrap items-center gap-sm">
+      <!-- Search -->
+      <div class="search-input-wrapper flex-1 sm:flex-none" style="min-width: 220px;">
+        <span class="material-symbols-outlined">search</span>
+        <input type="text" placeholder="搜尋姓名/電話..." id="memberSearch"
+               value="{{ search|e }}" class="search-field">
+      </div>
+      <!-- Unpaid filter toggle -->
+      <div class="flex items-center gap-xs" style="background: var(--surface-container); border-radius: 10px; padding: 0.25rem;">
+        <button class="filter-btn {% if request.args.get('unpaid') != 'yes' and request.args.get('unpaid') != 'no' %}active{% endif %}"
+                data-value="" onclick="onUnpaidFilter('')">全部</button>
+        <button class="filter-btn {% if request.args.get('unpaid') == 'yes' %}active{% endif %}"
+                data-value="yes" onclick="onUnpaidFilter('yes')">未繳</button>
+        <button class="filter-btn {% if request.args.get('unpaid') == 'no' %}active{% endif %}"
+                data-value="no" onclick="onUnpaidFilter('no')">已清</button>
+      </div>
+    </div>
+    <div class="flex items-center gap-sm">
+      <!-- Import CSV -->
+      <button class="btn-secondary" onclick="document.getElementById('csvImportInput').click()">
+        <span class="material-symbols-outlined">upload_file</span>
+        <span class="hidden sm:inline">匯入 CSV</span>
+      </button>
+      <input type="file" id="csvImportInput" accept=".csv" style="display:none"
+             onchange="importCSV(this.files[0])">
+      <!-- Export CSV -->
+      <a href="{{ url_for('members.export_members') }}" class="btn-secondary">
+        <span class="material-symbols-outlined">download</span>
+        <span class="hidden sm:inline">匯出 CSV</span>
+      </a>
+      <!-- Add Member -->
+      <button class="btn-primary" onclick="openAddModal()">
+        <span class="material-symbols-outlined">add</span>
+        <span class="hidden sm:inline">新增會員</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══ Desktop Table ═══ -->
+  <div class="imperial-card hidden md:block p-0" style="overflow-x: auto;">
+    <table class="imperial-table">
+      <thead>
+        <tr>
+          <th style="width: 80px;">編號</th>
+          <th>姓名</th>
+          <th>電話</th>
+          <th style="text-align: right;">應繳</th>
+          <th style="text-align: right;">已繳</th>
+          <th style="text-align: right;">欠款</th>
+          <th style="width: 100px;">狀態</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in members %}
+        <tr class="member-row" style="cursor: pointer;" onclick="window.location.href='{{ url_for('members.member_detail', member_id=m.member_id) }}'">
+          <td style="font-weight: 600; color: var(--primary);">#{{ m.member_id }}</td>
+          <td>
+            <div class="font-label-lg" style="color: var(--on-surface);">{{ m.name }}</div>
+          </td>
+          <td>
+            <div class="font-body-sm" style="color: var(--on-surface-variant);">{{ m.phone or '—' }}</div>
+          </td>
+          <td style="text-align: right; font-weight: 500;">
+            {% if m.total_due > 0 %}
+            ${{ m.total_due|int }}
+            {% else %}
+            <span style="color: var(--on-surface-variant);">—</span>
+            {% endif %}
+          </td>
+          <td style="text-align: right;">
+            {% if m.total_paid > 0 %}
+            <span style="color: #166534;">${{ m.total_paid|int }}</span>
+            {% else %}
+            <span style="color: var(--on-surface-variant);">—</span>
+            {% endif %}
+          </td>
+          <td style="text-align: right;">
+            {% set unpaid = m.total_due - m.total_paid %}
+            {% if unpaid > 0 %}
+            <span style="color: var(--tertiary); font-weight: 600;">${{ unpaid|int }}</span>
+            {% else %}
+            <span style="color: var(--on-surface-variant);">$0</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if m.total_due == 0 %}
+            <span class="chip chip-green">無紀錄</span>
+            {% elif unpaid <= 0 %}
+            <span class="chip chip-green">已清</span>
+            {% elif m.total_paid > 0 and unpaid > 0 %}
+            <span class="chip chip-gold">部分</span>
+            {% else %}
+            <span class="chip chip-red">未繳</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" style="text-align: center; padding: 3rem 1rem; color: var(--on-surface-variant);">
+            <div class="flex flex-col items-center gap-sm">
+              <span class="material-symbols-outlined" style="font-size: 2.5rem;">groups</span>
+              <p class="font-body-md">暫無會員記錄</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══ Mobile Card List ═══ -->
+  <div class="md:hidden flex flex-col gap-sm">
+    {% for m in members %}
+    <a href="{{ url_for('members.member_detail', member_id=m.member_id) }}"
+       class="imperial-card flex items-center gap-md"
+       style="text-decoration: none; display: flex;"
+       onclick="event.stopPropagation();">
+      <div class="avatar shrink-0" style="width: 44px; height: 44px; border-radius: 10px; font-size: 1rem;">
+        {{ m.name[:1] }}
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center justify-between">
+          <span class="font-label-lg truncate" style="color: var(--on-surface);">{{ m.name }}</span>
+          {% set unpaid = m.total_due - m.total_paid %}
+          {% if unpaid > 0 %}
+          <span class="chip chip-red">${{ unpaid|int }}</span>
+          {% elif m.total_due > 0 %}
+          <span class="chip chip-green">已清</span>
+          {% else %}
+          <span class="chip" style="background: var(--surface-container); color: var(--on-surface-variant);">無</span>
+          {% endif %}
+        </div>
+        <div class="flex items-center gap-sm mt-xs">
+          <span class="font-body-sm" style="color: var(--on-surface-variant);">#{{ m.member_id }}</span>
+          {% if m.phone %}
+          <span class="font-body-sm" style="color: var(--on-surface-variant);">· {{ m.phone }}</span>
+          {% endif %}
+        </div>
+      </div>
+      <span class="material-symbols-outlined" style="color: var(--on-surface-variant); font-size: 1.25rem;">chevron_right</span>
+    </a>
+    {% else %}
+    <div class="flex flex-col items-center py-xl" style="color: var(--on-surface-variant);">
+      <span class="material-symbols-outlined" style="font-size: 2.5rem; margin-bottom: 0.5rem;">groups</span>
+      <p class="font-body-md">暫無會員記錄</p>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- ═══ Pagination ═══ -->
+  {% if members|length > 20 %}
+  <div class="flex items-center justify-center gap-sm mt-lg">
+    <button class="btn-secondary" style="padding: 0.375rem 0.75rem;">
+      <span class="material-symbols-outlined" style="font-size: 1rem;">chevron_left</span>
+    </button>
+    <span class="font-body-sm" style="color: var(--on-surface-variant); padding: 0 0.5rem;">第 1 頁</span>
+    <button class="btn-secondary" style="padding: 0.375rem 0.75rem;">
+      <span class="material-symbols-outlined" style="font-size: 1rem;">chevron_right</span>
+    </button>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- ═══ Add Member Modal ═══ -->
+<div id="addMemberModal" class="modal-overlay" style="display: none;">
+  <div class="modal-container">
+    <div class="flex items-center justify-between mb-lg">
+      <h2 class="font-headline-md" style="color: var(--on-surface);">新增會員</h2>
+      <button class="icon-btn" onclick="closeAddModal()">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <form id="addMemberForm" onsubmit="submitAddMember(event)">
+      <div class="flex flex-col gap-md">
+        <div>
+          <label class="form-label" for="add_name">姓名 <span style="color: var(--tertiary);">*</span></label>
+          <input class="form-input" type="text" id="add_name" name="name" required placeholder="會員姓名">
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-md">
+          <div>
+            <label class="form-label" for="add_phone">電話</label>
+            <input class="form-input" type="text" id="add_phone" name="phone" placeholder="電話號碼">
+          </div>
+          <div>
+            <label class="form-label" for="add_phone_2">後備電話</label>
+            <input class="form-input" type="text" id="add_phone_2" name="phone_2" placeholder="後備電話">
+          </div>
+        </div>
+        <div>
+          <label class="form-label" for="add_address">地址</label>
+          <input class="form-input" type="text" id="add_address" name="home_address" placeholder="住址">
+        </div>
+        <div>
+          <label class="form-label" for="add_first_year">加入年份</label>
+          <input class="form-input" type="number" id="add_first_year" name="first_year" placeholder="e.g. 2025"
+                 min="1900" max="2099">
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-sm mt-lg">
+        <button type="button" class="btn-secondary" onclick="closeAddModal()">取消</button>
+        <button type="submit" class="btn-primary">
+          <span class="material-symbols-outlined">check</span>
+          新增
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ Import Status Toast ═══ -->
+<div id="importToast" style="display: none; position: fixed; bottom: 6rem; left: 50%; transform: translateX(-50%);
+     background: var(--inverse-surface); color: var(--surface); padding: 0.75rem 1.5rem; border-radius: 10px;
+     font-family: 'Inter', sans-serif; font-size: 0.875rem; z-index: 999; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  /* Modal overlay */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+    padding: 1rem;
+  }
+  .modal-container {
+    background: var(--surface);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  }
+  /* Filter buttons */
+  .filter-btn {
+    padding: 0.375rem 0.875rem;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--on-surface-variant);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .filter-btn:hover { background: var(--surface); color: var(--on-surface); }
+  .filter-btn.active {
+    background: var(--primary);
+    color: var(--on-primary);
+  }
+  .member-row:hover {
+    background: var(--surface-container);
+  }
+  .member-row td {
+    transition: background 0.1s;
+  }
+</style>
+<script>
+  // ── Search with Enter ──
+  document.addEventListener('DOMContentLoaded', function () {
+    const searchInput = document.getElementById('memberSearch');
+    if (searchInput) {
+      searchInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+          const q = encodeURIComponent(this.value.trim());
+          const url = new URL(window.location.href);
+          if (q) url.searchParams.set('q', q);
+          else url.searchParams.delete('q');
+          window.location.href = url.toString();
+        }
+      });
+    }
+  });
+
+  // ── Unpaid filter ──
+  function onUnpaidFilter(val) {
+    const url = new URL(window.location.href);
+    if (val) url.searchParams.set('unpaid', val);
+    else url.searchParams.delete('unpaid');
+    window.location.href = url.toString();
+  }
+
+  // ── Add Member Modal ──
+  function openAddModal() {
+    document.getElementById('addMemberModal').style.display = 'flex';
+  }
+  function closeAddModal() {
+    document.getElementById('addMemberModal').style.display = 'none';
+    document.getElementById('addMemberForm').reset();
+  }
+
+  async function submitAddMember(e) {
+    e.preventDefault();
+    const form = e.target;
+    const formData = new FormData(form);
+    try {
+      const resp = await fetch('{{ url_for("members.add_member") }}', {
+        method: 'POST', body: formData
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        closeAddModal();
+        window.location.reload();
+      } else {
+        alert('錯誤: ' + (data.error || '無法新增會員'));
+      }
+    } catch (err) {
+      alert('網絡錯誤，請重試');
+    }
+  }
+
+  // ── Import CSV ──
+  async function importCSV(file) {
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const resp = await fetch('{{ url_for("members.import_members") }}', {
+        method: 'POST', body: formData
+      });
+      const data = await resp.json();
+      const toast = document.getElementById('importToast');
+      if (data.ok) {
+        toast.textContent = '✅ 成功匯入 ' + data.count + ' 位會員' + (data.errors.length ? ' (' + data.errors.length + ' 個錯誤)' : '');
+        toast.style.display = 'block';
+        setTimeout(() => { toast.style.display = 'none'; window.location.reload(); }, 2000);
+      } else {
+        toast.textContent = '❌ ' + (data.error || '匯入失敗');
+        toast.style.display = 'block';
+        setTimeout(() => { toast.style.display = 'none'; }, 3000);
+      }
+    } catch (err) {
+      alert('匯入失敗: ' + err.message);
+    }
+  }
+
+  // Close modal on overlay click
+  document.addEventListener('DOMContentLoaded', function () {
+    const overlay = document.getElementById('addMemberModal');
+    overlay.addEventListener('click', function (e) {
+      if (e.target === this) closeAddModal();
+    });
+  });
+</script>
+{% endblock %}

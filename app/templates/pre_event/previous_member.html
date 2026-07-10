@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}{{ member.name }} — 欠款詳情 — 寶榮堂花炮會{% endblock %}
+{% block page_title %}{{ member.name }} — 欠款詳情{% endblock %}
+
+{% block head %}
+<style>
+  .info-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0;
+  }
+  .info-row:not(:last-child) {
+    border-bottom: 1px solid var(--outline-variant);
+  }
+  .info-label {
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--on-surface-variant);
+    min-width: 80px;
+    flex-shrink: 0;
+  }
+  .info-value {
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 0.9375rem;
+    color: var(--on-surface);
+  }
+
+  .invoice-btn-group {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 640px) {
+    .invoice-btn-group { flex-direction: column; }
+    .invoice-btn-group .btn-primary,
+    .invoice-btn-group .btn-secondary { width: 100%; justify-content: center; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+
+  <!-- ═══ Member Info Card ═══ -->
+  <div class="imperial-card mb-lg">
+    <div class="flex items-start justify-between mb-md">
+      <div>
+        <h2 class="font-headline-lg" style="color: var(--on-surface);">{{ member.name }}</h2>
+        <p class="font-body-sm text-on-surface-variant">{{ member.contact or '未有聯絡資料' }}</p>
+      </div>
+      <div class="text-right">
+        <div class="font-label-md text-on-surface-variant">未繳總額</div>
+        <div class="font-headline-xl" style="color: var(--tertiary);">${{ member.unpaid_total|default(0)|int }}</div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-sm">
+      <div class="info-row">
+        <span class="info-label">應繳總額</span>
+        <span class="info-value">${{ member.total_due|default(0)|int }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">已繳總額</span>
+        <span class="info-value" style="color: #166534;">${{ member.total_paid|default(0)|int }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">未繳總額</span>
+        <span class="info-value" style="color: var(--tertiary);">${{ member.unpaid_total|default(0)|int }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">欠款項目</span>
+        <span class="info-value">{{ member.item_count|default(0) }} 項</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Invoice Actions ═══ -->
+  <div class="imperial-card mb-lg" style="background: var(--surface-container);">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-md">
+      <span class="font-headline-sm" style="color: var(--on-surface);">發票 / 收據</span>
+      <div class="invoice-btn-group">
+        <button class="btn-primary" onclick="generateDocx()">
+          <span class="material-symbols-outlined">description</span>
+          Generate DOCX 發票
+        </button>
+        <button class="btn-secondary" onclick="generateXlsx()">
+          <span class="material-symbols-outlined">table_chart</span>
+          Generate XLSX 收據
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Unpaid Items ═══ -->
+  <div class="imperial-card p-0">
+    <div class="px-lg py-md border-b border-outline-variant">
+      <h2 class="font-headline-md" style="color: var(--on-surface);">欠款項目</h2>
+    </div>
+
+    {% if items %}
+    <!-- Desktop Table -->
+    <div class="hidden md:block overflow-x-auto">
+      <table class="imperial-table">
+        <thead>
+          <tr>
+            <th>聖物名稱</th>
+            <th>競投金額</th>
+            <th>已付金額</th>
+            <th>未付金額</th>
+            <th>狀態</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <td class="font-label-lg">{{ item.item_name or '—' }}</td>
+            <td class="font-label-lg">${{ item.bid_amount|int if item.bid_amount else 0 }}</td>
+            <td class="font-label-lg" style="color: #166534;">${{ item.paid_amount|int if item.paid_amount else 0 }}</td>
+            <td class="font-headline-md {% if item.unpaid > 0 %}unpaid-highlight{% endif %}">
+              ${{ item.unpaid|int if item.unpaid else 0 }}
+            </td>
+            <td>
+              {% if item.unpaid and item.unpaid > 0 %}
+              <span class="chip chip-red">未繳</span>
+              {% elif item.bid_amount and item.paid_amount and item.paid_amount >= item.bid_amount %}
+              <span class="chip chip-green">已繳清</span>
+              {% else %}
+              <span class="chip chip-gold">部分</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Mobile List -->
+    <div class="md:hidden">
+      {% for item in items %}
+      <div class="flex items-center p-lg" style="border-bottom: 1px solid var(--outline-variant);">
+        <div class="flex-1 min-w-0">
+          <div class="font-label-lg">{{ item.item_name or '—' }}</div>
+          <div class="flex flex-wrap gap-md mt-xs">
+            <span class="font-body-sm text-on-surface-variant">競投: ${{ item.bid_amount|int if item.bid_amount else 0 }}</span>
+            <span class="font-body-sm" style="color: #166534;">已付: ${{ item.paid_amount|int if item.paid_amount else 0 }}</span>
+          </div>
+          <div class="flex items-center gap-sm mt-xs">
+            <span class="font-headline-sm {% if item.unpaid > 0 %}unpaid-highlight{% endif %}">
+              未付: ${{ item.unpaid|int if item.unpaid else 0 }}
+            </span>
+            {% if item.unpaid and item.unpaid > 0 %}
+            <span class="chip chip-red">未繳</span>
+            {% elif item.bid_amount and item.paid_amount and item.paid_amount >= item.bid_amount %}
+            <span class="chip chip-green">已繳清</span>
+            {% else %}
+            <span class="chip chip-gold">部分</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="flex flex-col items-center py-xl" style="color: var(--on-surface-variant);">
+      <span class="material-symbols-outlined" style="font-size: 2.5rem; margin-bottom: 0.5rem;">check_circle</span>
+      <p class="font-body-md">此會員沒有欠款項目</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ═══ Back link ═══ -->
+  <div class="mt-lg">
+    <a href="{{ url_for('pre_event.pre_previous') }}" class="btn-secondary">
+      <span class="material-symbols-outlined">arrow_back</span>
+      返回欠款列表
+    </a>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function generateDocx() {
+    window.open('{{ url_for("pre_event.pre_previous_member", member_id=member.id) }}/docx', '_blank');
+  }
+  function generateXlsx() {
+    window.open('{{ url_for("pre_event.pre_previous_member", member_id=member.id) }}/xlsx', '_blank');
+  }
+</script>
+{% endblock %}

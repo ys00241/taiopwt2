@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+
+{% from "components/stat_card.html" import stat_card %}
+
+{% block title %}開支管理 — 寶榮堂花炮會{% endblock %}
+{% block page_title %}開支管理 Expenses{% endblock %}
+
+{% block head %}
+<style>
+  .expense-category-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.1875rem 0.5rem;
+    border-radius: 5px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 0.6875rem;
+    background: var(--primary-container);
+    color: var(--on-primary-container);
+  }
+  .expense-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid var(--outline-variant);
+    transition: background 0.1s;
+  }
+  .expense-row:last-child { border-bottom: none; }
+  .expense-row:hover { background: var(--surface-container); }
+  @media (max-width: 640px) {
+    .expense-row { flex-wrap: wrap; gap: 0.5rem; }
+    .expense-amount { font-size: 1.125rem; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+
+  <!-- ═══ Summary ═══ -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-md mb-lg">
+    {{ stat_card("開支總額", "$%s"|format(stats.total|default(0)|int), "receipt_long", "var(--primary)") }}
+    {{ stat_card("現金支付", "$%s"|format(stats.cash|default(0)|int), "payments", "var(--on-surface-variant)") }}
+    {{ stat_card("支票支付", "$%s"|format(stats.chq|default(0)|int), "request_quote", "var(--on-surface-variant)") }}
+    {{ stat_card("轉數快", "$%s"|format(stats.fps|default(0)|int), "phone_iphone", "var(--on-surface-variant)") }}
+  </div>
+
+  <!-- ═══ Add Expense Form (Desktop card) ═══ -->
+  <div class="imperial-card mb-lg hidden md:block">
+    <h2 class="font-headline-md mb-md" style="color: var(--on-surface);">新增開支</h2>
+    <form method="POST" action="{{ url_for('pre_event.pre_expenses') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+      <input type="hidden" name="action" value="add">
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
+        <div>
+          <label class="form-label" for="expDate">日期</label>
+          <input type="date" class="form-input" id="expDate" name="date" value="{{ today }}">
+        </div>
+        <div>
+          <label class="form-label" for="expCategory">類別 *</label>
+          <select class="form-input" id="expCategory" name="category" required>
+            <option value="">選擇類別</option>
+            <option value="酒席">酒席</option>
+            <option value="場地">場地</option>
+            <option value="佈置">佈置</option>
+            <option value="音響">音響</option>
+            <option value="攝影">攝影</option>
+            <option value="神料">神料</option>
+            <option value="花炮">花炮</option>
+            <option value="樂隊">樂隊</option>
+            <option value="歌星">歌星</option>
+            <option value="舞獅">舞獅</option>
+            <option value="工作人員">工作人員</option>
+            <option value="雜項">雜項</option>
+            <option value="交通">交通</option>
+            <option value="宣傳">宣傳</option>
+            <option value="保險">保險</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label" for="expSubject">項目 *</label>
+          <input type="text" class="form-input" id="expSubject" name="subject" required placeholder="eg. 花炮裝飾材料">
+        </div>
+        <div>
+          <label class="form-label" for="expAmount">金額 *</label>
+          <input type="number" class="form-input" id="expAmount" name="amount" required min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div>
+          <label class="form-label" for="expPayment">付款方式</label>
+          <select class="form-input" id="expPayment" name="payment_method">
+            <option value="CASH">現金 CASH</option>
+            <option value="CHQ">支票 CHQ</option>
+            <option value="轉數快">轉數快 FPS</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label" for="expHandler">經手人</label>
+          <input type="text" class="form-input" id="expHandler" name="handler" placeholder="經手人姓名">
+        </div>
+        <div class="sm:col-span-2 lg:col-span-3">
+          <label class="form-label" for="expDetails">詳情</label>
+          <textarea class="form-input" id="expDetails" name="details" rows="2" placeholder="開支詳情備註"></textarea>
+        </div>
+      </div>
+
+      <div class="flex justify-end mt-md">
+        <button type="submit" class="btn-primary">
+          <span class="material-symbols-outlined">add_circle</span>
+          新增開支
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ═══ Mobile Add Button (floating) ═══ -->
+  <div class="md:hidden mb-md">
+    <button class="btn-primary w-full justify-center" onclick="toggleMobileForm()">
+      <span class="material-symbols-outlined">add_circle</span>
+      新增開支
+    </button>
+    <div id="mobileExpForm" class="imperial-card mt-sm" style="display: none;">
+      <form method="POST" action="{{ url_for('pre_event.pre_expenses') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+        <input type="hidden" name="action" value="add">
+
+        <div class="flex flex-col gap-sm">
+          <div>
+            <label class="form-label" for="mobExpDate">日期</label>
+            <input type="date" class="form-input" id="mobExpDate" name="date" value="{{ today }}">
+          </div>
+          <div>
+            <label class="form-label" for="mobExpCategory">類別 *</label>
+            <select class="form-input" id="mobExpCategory" name="category" required>
+              <option value="">選擇類別</option>
+              <option value="酒席">酒席</option>
+              <option value="場地">場地</option>
+              <option value="佈置">佈置</option>
+              <option value="音響">音響</option>
+              <option value="攝影">攝影</option>
+              <option value="神料">神料</option>
+              <option value="花炮">花炮</option>
+              <option value="樂隊">樂隊</option>
+              <option value="歌星">歌星</option>
+              <option value="舞獅">舞獅</option>
+              <option value="工作人員">工作人員</option>
+              <option value="雜項">雜項</option>
+              <option value="交通">交通</option>
+              <option value="宣傳">宣傳</option>
+              <option value="保險">保險</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" for="mobExpSubject">項目 *</label>
+            <input type="text" class="form-input" id="mobExpSubject" name="subject" required placeholder="eg. 花炮裝飾材料">
+          </div>
+          <div class="grid grid-cols-2 gap-sm">
+            <div>
+              <label class="form-label" for="mobExpAmount">金額 *</label>
+              <input type="number" class="form-input" id="mobExpAmount" name="amount" required min="0" step="0.01" placeholder="0.00">
+            </div>
+            <div>
+              <label class="form-label" for="mobExpPayment">付款</label>
+              <select class="form-input" id="mobExpPayment" name="payment_method">
+                <option value="CASH">現金</option>
+                <option value="CHQ">支票</option>
+                <option value="轉數快">轉數快</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="form-label" for="mobExpHandler">經手人</label>
+            <input type="text" class="form-input" id="mobExpHandler" name="handler" placeholder="姓名">
+          </div>
+          <div>
+            <label class="form-label" for="mobExpDetails">詳情</label>
+            <textarea class="form-input" id="mobExpDetails" name="details" rows="2" placeholder="備註"></textarea>
+          </div>
+        </div>
+
+        <div class="flex justify-end mt-md gap-sm">
+          <button type="button" class="btn-secondary" onclick="toggleMobileForm()">取消</button>
+          <button type="submit" class="btn-primary">儲存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══ Expense List (Table Desktop / List Mobile) ═══ -->
+  <div class="imperial-card p-0">
+    <div class="px-lg py-md border-b border-outline-variant">
+      <h2 class="font-headline-md" style="color: var(--on-surface);">開支記錄</h2>
+    </div>
+
+    {% if expenses %}
+    <!-- Desktop Table -->
+    <div class="hidden md:block overflow-x-auto">
+      <table class="imperial-table">
+        <thead>
+          <tr>
+            <th>日期</th>
+            <th>類別</th>
+            <th>項目</th>
+            <th>金額</th>
+            <th>付款方式</th>
+            <th>經手人</th>
+            <th class="text-right">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for exp in expenses %}
+          <tr>
+            <td class="font-body-sm text-on-surface-variant">{{ exp.date }}</td>
+            <td><span class="expense-category-chip">{{ exp.category }}</span></td>
+            <td class="font-label-lg">{{ exp.subject }}</td>
+            <td class="font-label-lg" style="color: var(--tertiary);">${{ exp.amount|int }}</td>
+            <td>
+              {% if exp.payment_method == 'CASH' %}
+              <span class="chip chip-gold">現金</span>
+              {% elif exp.payment_method == 'CHQ' %}
+              <span class="chip" style="background: #eef2ff; color: #4338ca;">支票</span>
+              {% else %}
+              <span class="chip" style="background: #f0fdf4; color: #166534;">{{ exp.payment_method }}</span>
+              {% endif %}
+            </td>
+            <td class="font-body-sm text-on-surface-variant">{{ exp.handler or '—' }}</td>
+            <td class="text-right">
+              <div class="flex items-center justify-end gap-xs">
+                <button class="icon-btn" onclick="editExpense({{ exp.id }})" title="編輯">
+                  <span class="material-symbols-outlined">edit</span>
+                </button>
+                <button class="icon-btn" onclick="deleteExpense({{ exp.id }})" title="刪除" style="color: var(--tertiary);">
+                  <span class="material-symbols-outlined">delete</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Mobile List -->
+    <div class="md:hidden">
+      {% for exp in expenses %}
+      <div class="expense-row">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-xs mb-xs">
+            <span class="expense-category-chip">{{ exp.category }}</span>
+            <span class="font-body-sm text-on-surface-variant">{{ exp.date }}</span>
+          </div>
+          <div class="font-label-lg truncate">{{ exp.subject }}</div>
+          <div class="font-body-sm text-on-surface-variant mt-xs">
+            {% if exp.handler %}{{ exp.handler }} · {% endif %}
+            {% if exp.payment_method == 'CASH' %}現金{% elif exp.payment_method == 'CHQ' %}支票{% else %}{{ exp.payment_method }}{% endif %}
+          </div>
+        </div>
+        <div class="text-right shrink-0">
+          <div class="font-headline-md expense-amount" style="color: var(--tertiary);">${{ exp.amount|int }}</div>
+          <div class="flex justify-end gap-xs mt-xs">
+            <button class="icon-btn" onclick="editExpense({{ exp.id }})" title="編輯" style="width: 28px; height: 28px;">
+              <span class="material-symbols-outlined" style="font-size: 1rem;">edit</span>
+            </button>
+            <button class="icon-btn" onclick="deleteExpense({{ exp.id }})" title="刪除" style="width: 28px; height: 28px; color: var(--tertiary);">
+              <span class="material-symbols-outlined" style="font-size: 1rem;">delete</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="flex flex-col items-center py-xl" style="color: var(--on-surface-variant);">
+      <span class="material-symbols-outlined" style="font-size: 2.5rem; margin-bottom: 0.5rem;">receipt_long</span>
+      <p class="font-body-md">暫無開支記錄</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ═══ Pagination ═══ -->
+  {% if pagination and pagination.pages > 1 %}
+  <div class="flex items-center justify-center gap-xs mt-lg">
+    {% if pagination.has_prev %}
+    <a href="?page={{ pagination.prev_num }}" class="btn-secondary" style="padding: 0.375rem 0.75rem;">
+      <span class="material-symbols-outlined" style="font-size: 1rem;">chevron_left</span>
+    </a>
+    {% endif %}
+    {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+      {% if p %}
+      <a href="?page={{ p }}"
+         class="btn-secondary"
+         style="padding: 0.375rem 0.75rem; {% if p == pagination.page %}background: var(--primary); color: var(--on-primary); border-color: var(--primary);{% endif %}">
+        {{ p }}
+      </a>
+      {% else %}
+      <span class="font-body-sm text-on-surface-variant px-xs">...</span>
+      {% endif %}
+    {% endfor %}
+    {% if pagination.has_next %}
+    <a href="?page={{ pagination.next_num }}" class="btn-secondary" style="padding: 0.375rem 0.75rem;">
+      <span class="material-symbols-outlined" style="font-size: 1rem;">chevron_right</span>
+    </a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function toggleMobileForm() {
+    const f = document.getElementById('mobileExpForm');
+    f.style.display = f.style.display === 'none' ? 'block' : 'none';
+  }
+
+  function editExpense(id) {
+    window.location.href = '{{ url_for("pre_event.pre_expenses") }}?edit=' + id;
+  }
+
+  function deleteExpense(id) {
+    if (confirm('確定刪除此開支記錄？')) {
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '{{ url_for("pre_event.pre_expenses") }}';
+      form.innerHTML = `
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+        <input type="hidden" name="action" value="delete">
+        <input type="hidden" name="expense_id" value="${id}">
+      `;
+      document.body.appendChild(form);
+      form.submit();
+    }
+  }
+</script>
+{% endblock %}

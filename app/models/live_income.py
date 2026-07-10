@@ -7,12 +7,16 @@ class LiveIncome(db.Model):
 
     __tablename__ = "live_income"
 
+    __table_args__ = (
+        db.Index("idx_live_income_year", "year"),
+    )
+
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    year = db.Column(db.Integer, nullable=False, index=True, comment="收款年份")
+    year = db.Column(db.Integer, nullable=False, comment="收款年份")
     member_id = db.Column(db.Integer, comment="會員編號")
     member_name = db.Column(db.String(200), default="", comment="會員名稱")
     source_year = db.Column(db.Integer, comment="來源年份 (欠款年份)")
-    amount = db.Column(db.Float, default=0, comment="金額")
+    amount = db.Column(db.Float, default=0, comment="金額 (HKD)")
     payment_method = db.Column(db.String(50), default="", comment="付款方式")
     handler = db.Column(db.String(100), default="", comment="經手人")
     remarks = db.Column(db.Text, default="", comment="備註")

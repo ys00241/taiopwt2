@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% from "components/stat_card.html" import stat_card %}
+
+{% block title %}贊助管理 — 寶榮堂花炮會{% endblock %}
+{% block page_title %}贊助管理 Sponsors{% endblock %}
+
+{% block head %}
+<style>
+  .sponsor-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid var(--outline-variant);
+    transition: background 0.1s;
+  }
+  .sponsor-row:last-child { border-bottom: none; }
+  .sponsor-row:hover { background: var(--surface-container); }
+  @media (max-width: 640px) {
+    .sponsor-row { flex-wrap: wrap; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+
+  <!-- ═══ Summary ═══ -->
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-md mb-lg">
+    {{ stat_card("贊助總額", "$%s"|format(stats.total|default(0)|int), "volunteer_activism", "var(--primary)") }}
+    {{ stat_card("贊助筆數", stats.count|default(0), "receipt", "var(--on-surface-variant)") }}
+    {{ stat_card("最高贊助", "$%s"|format(stats.highest|default(0)|int), "star", "var(--primary-container)") }}
+  </div>
+
+  <!-- ═══ Add Sponsor Form ═══ -->
+  <div class="imperial-card mb-lg">
+    <h2 class="font-headline-md mb-md" style="color: var(--on-surface);">
+      {% if edit_sponsor %}編輯贊助{% else %}新增贊助{% endif %}
+    </h2>
+    <form method="POST" action="{{ url_for('pre_event.pre_sponsors') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+      <input type="hidden" name="action" value="{% if edit_sponsor %}update{% else %}add{% endif %}">
+      {% if edit_sponsor %}<input type="hidden" name="sponsor_id" value="{{ edit_sponsor.id }}">{% endif %}
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-md">
+        <div>
+          <label class="form-label" for="spName">贊助者 *</label>
+          <input type="text" class="form-input" id="spName" name="sponsor_name" required
+                 value="{{ edit_sponsor.sponsor_name if edit_sponsor else '' }}"
+                 placeholder="姓名 / 團體">
+        </div>
+        <div>
+          <label class="form-label" for="spAmount">贊助金額 *</label>
+          <input type="number" class="form-input" id="spAmount" name="amount" required min="0" step="0.01"
+                 value="{{ edit_sponsor.amount|int if edit_sponsor else '' }}"
+                 placeholder="0.00">
+        </div>
+        <div>
+          <label class="form-label" for="spItem">贊助聖物</label>
+          <input type="text" class="form-input" id="spItem" name="item_name"
+                 value="{{ edit_sponsor.item_name if edit_sponsor else '' }}"
+                 placeholder="聖物名稱（選填）">
+        </div>
+        <div>
+          <label class="form-label" for="spDetails">備註</label>
+          <input type="text" class="form-input" id="spDetails" name="details"
+                 value="{{ edit_sponsor.details if edit_sponsor else '' }}"
+                 placeholder="備註">
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-sm mt-md">
+        {% if edit_sponsor %}
+        <a href="{{ url_for('pre_event.pre_sponsors') }}" class="btn-secondary">取消</a>
+        {% endif %}
+        <button type="submit" class="btn-primary">
+          <span class="material-symbols-outlined">{% if edit_sponsor %}save{% else %}add_circle{% endif %}</span>
+          {% if edit_sponsor %}更新{% else %}新增{% endif %}
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ═══ Sponsor List ═══ -->
+  <div class="imperial-card p-0">
+    <div class="px-lg py-md border-b border-outline-variant">
+      <h2 class="font-headline-md" style="color: var(--on-surface);">贊助記錄</h2>
+    </div>
+
+    {% if sponsors %}
+    <!-- Desktop Table -->
+    <div class="hidden md:block overflow-x-auto">
+      <table class="imperial-table">
+        <thead>
+          <tr>
+            <th>贊助者</th>
+            <th>贊助金額</th>
+            <th>贊助聖物</th>
+            <th>備註</th>
+            <th class="text-right">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sp in sponsors %}
+          <tr>
+            <td class="font-label-lg">{{ sp.sponsor_name }}</td>
+            <td class="font-headline-md" style="color: var(--primary);">${{ sp.amount|int }}</td>
+            <td class="font-body-sm text-on-surface-variant">{{ sp.item_name or '—' }}</td>
+            <td class="font-body-sm text-on-surface-variant">{{ sp.details or '—' }}</td>
+            <td class="text-right">
+              <div class="flex items-center justify-end gap-xs">
+                <a href="?edit={{ sp.id }}" class="icon-btn" title="編輯">
+                  <span class="material-symbols-outlined">edit</span>
+                </a>
+                <button class="icon-btn" onclick="deleteSponsor({{ sp.id }})" title="刪除" style="color: var(--tertiary);">
+                  <span class="material-symbols-outlined">delete</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Mobile List -->
+    <div class="md:hidden">
+      {% for sp in sponsors %}
+      <div class="sponsor-row">
+        <div class="flex-1 min-w-0">
+          <div class="font-label-lg">{{ sp.sponsor_name }}</div>
+          <div class="font-body-sm text-on-surface-variant mt-xs">
+            {% if sp.item_name %}聖物: {{ sp.item_name }}{% endif %}
+            {% if sp.details %}{% if sp.item_name %} · {% endif %}{{ sp.details }}{% endif %}
+          </div>
+        </div>
+        <div class="text-right shrink-0">
+          <div class="font-headline-md" style="color: var(--primary);">${{ sp.amount|int }}</div>
+          <div class="flex justify-end gap-xs mt-xs">
+            <a href="?edit={{ sp.id }}" class="icon-btn" title="編輯" style="width: 28px; height: 28px;">
+              <span class="material-symbols-outlined" style="font-size: 1rem;">edit</span>
+            </a>
+            <button class="icon-btn" onclick="deleteSponsor({{ sp.id }})" title="刪除" style="width: 28px; height: 28px; color: var(--tertiary);">
+              <span class="material-symbols-outlined" style="font-size: 1rem;">delete</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="flex flex-col items-center py-xl" style="color: var(--on-surface-variant);">
+      <span class="material-symbols-outlined" style="font-size: 2.5rem; margin-bottom: 0.5rem;">volunteer_activism</span>
+      <p class="font-body-md">暫無贊助記錄</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function deleteSponsor(id) {
+    if (confirm('確定刪除此贊助記錄？')) {
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '{{ url_for("pre_event.pre_sponsors") }}';
+      form.innerHTML = `
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+        <input type="hidden" name="action" value="delete">
+        <input type="hidden" name="sponsor_id" value="${id}">
+      `;
+      document.body.appendChild(form);
+      form.submit();
+    }
+  }
+</script>
+{% endblock %}

@@ -14,9 +14,18 @@ class Config:
         f"sqlite:///{BASE_DIR / 'data' / 'paopao.db'}",
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,
+        "pool_recycle": 300,
+    }
+
+    # Paths
     UPLOAD_FOLDER = str(BASE_DIR / "uploads")
     CSV_EXPORT_FOLDER = str(BASE_DIR / "csv_exports")
+    UPLOADS_DIR = str(BASE_DIR / "uploads")
+    CSV_EXPORTS_DIR = str(BASE_DIR / "csv_exports")
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB
+
     VERSION = "v2.0.0"
 
 

@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+{%- set nav_items = [
+  ("/", "home", "首頁", "home"),
+  ("/pre/items", "pre_items", "聖物管理", "inventory_2"),
+  ("/members", "members", "會員管理", "groups"),
+  ("/live/bidding", "live_bidding", "競投台", "gavel"),
+  ("/live/payments", "live_payments", "收款台", "payments"),
+  ("/pl", "pl", "財務管理", "account_balance"),
+  ("/cashbook", "cashbook", "日記帳", "book"),
+  ("/manage", "manage", "管理", "settings"),
+] -%}
+{%- set bottom_nav = [
+  ("/", "home", "首頁", "home"),
+  ("/pre/items", "pre_items", "聖物", "inventory_2"),
+  ("/live/bidding", "live_bidding", "競投", "gavel"),
+  ("/live/payments", "live_payments", "收款", "payments"),
+  ("/manage", "manage", "帳戶", "person"),
+] -%}
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}寶榮堂花炮會{% endblock %}</title>
+
+  <!-- Google Fonts: Outfit + Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Material Symbols -->
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0,200" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    /* ═══════════════════════════════════════════
+       Stitch Design System — 寶榮堂花炮會
+       ═══════════════════════════════════════════ */
+    :root {
+      /* Primary — dark gold */
+      --primary: #795900;
+      --primary-container: #D4A843;
+      --on-primary: #ffffff;
+      --on-primary-container: #553e00;
+
+      /* Surface — warm cream */
+      --surface: #fff8f2;
+      --surface-container: #f6ede1;
+      --surface-container-high: #f0e7db;
+      --surface-container-highest: #eae1d5;
+      --surface-container-lowest: #ffffff;
+      --surface-variant: #eae1d5;
+      --on-surface: #1f1b14;
+      --on-surface-variant: #4e4636;
+
+      /* Background */
+      --background: #fff8f2;
+
+      /* Outline */
+      --outline-variant: #d2c5b1;
+
+      /* Tertiary — red */
+      --tertiary: #b52424;
+
+      /* Inverse */
+      --inverse-surface: #343028;
+      --inverse-primary: #eec058;
+    }
+
+    /* ── Tailwind customisation ── */
+    .tailwind-config {
+      --color-primary: #795900;
+      --color-primary-container: #D4A843;
+      --color-surface: #fff8f2;
+      --color-surface-container: #f6ede1;
+      --color-surface-container-high: #f0e7db;
+      --color-surface-container-highest: #eae1d5;
+      --color-surface-container-lowest: #ffffff;
+      --color-surface-variant: #eae1d5;
+      --color-on-surface: #1f1b14;
+      --color-on-surface-variant: #4e4636;
+      --color-background: #fff8f2;
+      --color-outline-variant: #d2c5b1;
+      --color-tertiary: #b52424;
+      --color-inverse-surface: #343028;
+      --color-inverse-primary: #eec058;
+    }
+
+    /* ── Base ── */
+    * { box-sizing: border-box; }
+    html { font-size: 16px; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--background);
+      color: var(--on-surface);
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--outline-variant); border-radius: 3px; }
+
+    /* ── Typography ── */
+    .font-headline-xl {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 2.25rem;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+    }
+    .font-headline-lg {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 1.75rem;
+      line-height: 1.25;
+      letter-spacing: -0.015em;
+    }
+    .font-headline-md {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 600;
+      font-size: 1.25rem;
+      line-height: 1.3;
+    }
+    .font-headline-sm {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 600;
+      font-size: 1rem;
+      line-height: 1.4;
+    }
+    .font-body-md {
+      font-family: 'Inter', sans-serif;
+      font-weight: 400;
+      font-size: 0.9375rem;
+      line-height: 1.5;
+    }
+    .font-body-sm {
+      font-family: 'Inter', sans-serif;
+      font-weight: 400;
+      font-size: 0.8125rem;
+      line-height: 1.5;
+    }
+    .font-label-lg {
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+      font-size: 0.875rem;
+      line-height: 1.5;
+      letter-spacing: 0.01em;
+    }
+    .font-label-md {
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+      font-size: 0.75rem;
+      line-height: 1.5;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 280px;
+      height: 100vh;
+      background: var(--surface);
+      border-right: 1px solid var(--outline-variant);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+    .sidebar-brand {
+      padding: 1.5rem 1.25rem 1rem;
+      border-bottom: 1px solid var(--outline-variant);
+    }
+    .sidebar-brand-icon {
+      width: 48px;
+      height: 48px;
+      background: var(--primary-container);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--on-primary-container);
+    }
+    .sidebar-brand-icon .material-symbols-outlined {
+      font-size: 28px;
+    }
+    .sidebar-nav {
+      flex: 1;
+      padding: 0.75rem 0.75rem;
+    }
+    .sidebar-nav-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.625rem 1rem;
+      border-radius: 10px;
+      color: var(--on-surface-variant);
+      text-decoration: none;
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+      font-size: 0.875rem;
+      line-height: 1.5;
+      transition: background 0.15s, color 0.15s;
+      cursor: pointer;
+    }
+    .sidebar-nav-item:hover {
+      background: var(--surface-container);
+      color: var(--on-surface);
+    }
+    .sidebar-nav-item.active {
+      background: var(--primary-container);
+      color: var(--on-primary-container);
+      font-weight: 600;
+    }
+    .sidebar-nav-item .material-symbols-outlined {
+      font-size: 1.25rem;
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    }
+    .sidebar-nav-item.active .material-symbols-outlined {
+      font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    }
+    .sidebar-section-label {
+      padding: 0.75rem 1rem 0.375rem;
+      color: var(--on-surface-variant);
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+      font-size: 0.6875rem;
+      line-height: 1.5;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      opacity: 0.6;
+    }
+
+    /* ── Main content area ── */
+    .main-wrapper {
+      margin-left: 280px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Top header bar ── */
+    .top-header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: var(--surface);
+      border-bottom: 1px solid var(--outline-variant);
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .top-header .page-title {
+      flex: 1;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 1.25rem;
+      line-height: 1.3;
+      color: var(--on-surface);
+      margin: 0;
+    }
+    .top-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .year-selector {
+      background: var(--surface-container);
+      border: 1px solid var(--outline-variant);
+      border-radius: 8px;
+      padding: 0.375rem 0.75rem;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8125rem;
+      color: var(--on-surface);
+      cursor: pointer;
+      outline: none;
+    }
+    .year-selector:focus {
+      border-color: var(--primary);
+    }
+    .search-input-wrapper {
+      display: flex;
+      align-items: center;
+      background: var(--surface-container);
+      border: 1px solid var(--outline-variant);
+      border-radius: 8px;
+      padding: 0.375rem 0.75rem;
+      gap: 0.375rem;
+    }
+    .search-input-wrapper .material-symbols-outlined {
+      font-size: 1.125rem;
+      color: var(--on-surface-variant);
+    }
+    .search-input-wrapper input {
+      border: none;
+      background: transparent;
+      outline: none;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8125rem;
+      color: var(--on-surface);
+      width: 160px;
+    }
+    .search-input-wrapper input::placeholder {
+      color: var(--on-surface-variant);
+      opacity: 0.6;
+    }
+    .icon-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: var(--on-surface-variant);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .icon-btn:hover {
+      background: var(--surface-container);
+    }
+    .icon-btn .material-symbols-outlined {
+      font-size: 1.25rem;
+    }
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--primary-container);
+      color: var(--on-primary-container);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 0.8125rem;
+    }
+    .notification-dot {
+      position: relative;
+    }
+    .notification-dot::after {
+      content: '';
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 8px;
+      height: 8px;
+      background: var(--tertiary);
+      border-radius: 50%;
+      border: 2px solid var(--surface);
+    }
+
+    /* ── Page content ── */
+    .page-content {
+      flex: 1;
+      padding: 1.5rem;
+    }
+
+    /* ── Bottom navigation (mobile only) ── */
+    .bottom-nav {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      background: var(--surface);
+      border-top: 1px solid var(--outline-variant);
+      padding: 0.25rem 0 0.5rem;
+    }
+    .bottom-nav-inner {
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-start;
+    }
+    .bottom-nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.125rem;
+      padding: 0.25rem 0.5rem;
+      text-decoration: none;
+      color: var(--on-surface-variant);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.6875rem;
+      font-weight: 500;
+      transition: color 0.15s;
+      min-width: 0;
+    }
+    .bottom-nav-item .material-symbols-outlined {
+      font-size: 1.375rem;
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    }
+    .bottom-nav-item.active {
+      color: var(--primary);
+    }
+    .bottom-nav-item.active .material-symbols-outlined {
+      font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    }
+
+    /* ── Imperial cards ── */
+    .imperial-card {
+      background: var(--surface);
+      border: 1px solid var(--outline-variant);
+      border-radius: 1rem;
+      padding: 1.25rem;
+      transition: box-shadow 0.2s;
+    }
+    .imperial-card:hover {
+      box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    }
+
+    /* ── Buttons ── */
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0.5rem 1.25rem;
+      border-radius: 10px;
+      border: none;
+      background: var(--primary);
+      color: var(--on-primary);
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      text-decoration: none;
+    }
+    .btn-primary:hover {
+      opacity: 0.9;
+    }
+    .btn-primary .material-symbols-outlined {
+      font-size: 1.125rem;
+    }
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0.5rem 1.25rem;
+      border-radius: 10px;
+      border: 1px solid var(--outline-variant);
+      background: var(--surface);
+      color: var(--on-surface-variant);
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      text-decoration: none;
+    }
+    .btn-secondary:hover {
+      background: var(--surface-container);
+      color: var(--on-surface);
+    }
+    .btn-secondary .material-symbols-outlined {
+      font-size: 1.125rem;
+    }
+    .btn-tertiary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0.5rem 1.25rem;
+      border-radius: 10px;
+      border: none;
+      background: var(--tertiary);
+      color: #ffffff;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      text-decoration: none;
+    }
+    .btn-tertiary:hover {
+      opacity: 0.9;
+    }
+
+    /* ── Tables ── */
+    .imperial-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    .imperial-table th {
+      text-align: left;
+      padding: 0.75rem 1rem;
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+      font-size: 0.75rem;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--on-surface-variant);
+      border-bottom: 1px solid var(--outline-variant);
+    }
+    .imperial-table td {
+      padding: 0.75rem 1rem;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.875rem;
+      color: var(--on-surface);
+      border-bottom: 1px solid var(--outline-variant);
+    }
+    .imperial-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* ── Form elements ── */
+    .form-input {
+      width: 100%;
+      padding: 0.625rem 0.875rem;
+      border: 1px solid var(--outline-variant);
+      border-radius: 10px;
+      background: var(--surface);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.875rem;
+      color: var(--on-surface);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .form-input:focus {
+      border-color: var(--primary);
+    }
+    .form-input::placeholder {
+      color: var(--on-surface-variant);
+      opacity: 0.5;
+    }
+    .form-label {
+      display: block;
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+      font-size: 0.8125rem;
+      color: var(--on-surface-variant);
+      margin-bottom: 0.375rem;
+    }
+
+    /* ── Status chips ── */
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.625rem;
+      border-radius: 6px;
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+      font-size: 0.75rem;
+    }
+    .chip-gold {
+      background: var(--primary-container);
+      color: var(--on-primary-container);
+    }
+    .chip-red {
+      background: #fef2f2;
+      color: var(--tertiary);
+    }
+    .chip-green {
+      background: #f0fdf4;
+      color: #166534;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 1023px) {
+      .sidebar { display: none; }
+      .main-wrapper { margin-left: 0; }
+      .bottom-nav { display: block; }
+      .page-content { padding-bottom: 5rem; }
+      .top-header { padding: 0.625rem 1rem; }
+      .top-header .page-title { font-size: 1.125rem; }
+      .search-input-wrapper input { width: 100px; }
+    }
+    @media (min-width: 1024px) {
+      .bottom-nav { display: none !important; }
+    }
+
+    /* ── Utility ── */
+    .gap-xs { gap: 0.25rem; }
+    .gap-sm { gap: 0.5rem; }
+    .gap-md { gap: 1rem; }
+    .gap-lg { gap: 1.5rem; }
+    .gap-xl { gap: 2rem; }
+    .p-xs { padding: 0.25rem; }
+    .p-sm { padding: 0.5rem; }
+    .p-md { padding: 1rem; }
+    .p-lg { padding: 1.5rem; }
+    .p-xl { padding: 2rem; }
+    .m-xs { margin: 0.25rem; }
+    .m-sm { margin: 0.5rem; }
+    .m-md { margin: 1rem; }
+    .m-lg { margin: 1.5rem; }
+    .m-xl { margin: 2rem; }
+    .mt-xs { margin-top: 0.25rem; }
+    .mt-sm { margin-top: 0.5rem; }
+    .mt-md { margin-top: 1rem; }
+    .mt-lg { margin-top: 1.5rem; }
+    .mb-xs { margin-bottom: 0.25rem; }
+    .mb-sm { margin-bottom: 0.5rem; }
+    .mb-md { margin-bottom: 1rem; }
+    .mb-lg { margin-bottom: 1.5rem; }
+    .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .shrink-0 { flex-shrink: 0; }
+    .min-w-0 { min-width: 0; }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+  <!-- ═══ SIDEBAR (Desktop) ═══ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="flex items-center gap-md">
+        <div class="sidebar-brand-icon">
+          <span class="material-symbols-outlined">temple_buddhist</span>
+        </div>
+        <div>
+          <div class="font-headline-sm" style="line-height: 1.2;">寶榮堂</div>
+          <div class="font-body-sm" style="color: var(--on-surface-variant);">花炮會管理系統</div>
+        </div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav" aria-label="主導航">
+      {% for href, id, label, icon in nav_items %}
+      <a href="{{ href }}"
+         class="sidebar-nav-item {% if request.endpoint and id in request.endpoint %}active{% endif %}"
+         aria-current="{% if request.endpoint and id in request.endpoint %}page{% else %}false{% endif %}">
+        <span class="material-symbols-outlined">{{ icon }}</span>
+        <span>{{ label }}</span>
+      </a>
+      {% endfor %}
+    </nav>
+
+    <div style="padding: 1rem 1.25rem; border-top: 1px solid var(--outline-variant);">
+      <div class="flex items-center gap-md">
+        <div class="avatar">管</div>
+        <div class="flex-1 min-w-0">
+          <div class="font-label-lg truncate" style="color: var(--on-surface);">管理員</div>
+          <div class="font-body-sm" style="color: var(--on-surface-variant);">admin@taio.org</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ═══ MAIN WRAPPER ═══ -->
+  <div class="main-wrapper">
+
+    <!-- ── Top Header ── -->
+    <header class="top-header">
+      <h1 class="page-title">{% block page_title %}寶榮堂花炮會{% endblock %}</h1>
+
+      <div class="top-header-actions">
+        <!-- Year selector -->
+        <select class="year-selector" id="yearSelect" onchange="onYearChange(this.value)">
+          {% set current_year = year|default(current_year, true) %}
+          {% for y in range(current_year, current_year - 5, -1) %}
+          <option value="{{ y }}" {% if y == current_year %}selected{% endif %}>{{ y }} 年度</option>
+          {% endfor %}
+        </select>
+
+        <!-- Search -->
+        <div class="search-input-wrapper hidden md:flex">
+          <span class="material-symbols-outlined">search</span>
+          <input type="text" placeholder="搜尋..." id="globalSearch">
+        </div>
+
+        <!-- Notification -->
+        <button class="icon-btn notification-dot" aria-label="通知">
+          <span class="material-symbols-outlined">notifications</span>
+        </button>
+
+        <!-- Avatar (mobile) -->
+        <div class="avatar md:hidden">管</div>
+      </div>
+    </header>
+
+    <!-- ── Page Content ── -->
+    <main class="page-content">
+      {% block content %}{% endblock %}
+    </main>
+
+  </div>
+
+  <!-- ═══ BOTTOM NAVIGATION (Mobile) ═══ -->
+  <nav class="bottom-nav" aria-label="底部導航">
+    <div class="bottom-nav-inner">
+      {% for href, id, label, icon in bottom_nav %}
+      <a href="{{ href }}"
+         class="bottom-nav-item {% if request.endpoint and id in request.endpoint %}active{% endif %}"
+         aria-current="{% if request.endpoint and id in request.endpoint %}page{% else %}false{% endif %}">
+        <span class="material-symbols-outlined">{{ icon }}</span>
+        <span>{{ label }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </nav>
+
+  <!-- ═══ SCRIPTS ═══ -->
+  <script>
+    // Year selector — reload page with selected year
+    function onYearChange(year) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('year', year);
+      window.location.href = url.toString();
+    }
+
+    // Global search — Enter to navigate
+    document.addEventListener('DOMContentLoaded', function () {
+      const searchInput = document.getElementById('globalSearch');
+      if (searchInput) {
+        searchInput.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' && this.value.trim()) {
+            window.location.href = '/items?search=' + encodeURIComponent(this.value.trim());
+          }
+        });
+      }
+    });
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

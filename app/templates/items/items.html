@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+
+{% block title %}聖物管理 — 寶榮堂花炮會{% endblock %}
+{% block page_title %}聖物管理{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+
+  <!-- ═══ Toolbar ═══ -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-md mb-lg">
+    <div class="search-input-wrapper flex-1" style="max-width: 360px;">
+      <span class="material-symbols-outlined">search</span>
+      <input type="text" placeholder="搜尋聖物名稱..." id="itemSearch"
+             value="{{ request.args.get('search', '')|e }}">
+    </div>
+    <div class="flex items-center gap-sm">
+      <span class="font-body-sm" style="color: var(--on-surface-variant);">{{ items|length }} 項記錄</span>
+    </div>
+  </div>
+
+  <!-- ═══ Desktop Table ═══ -->
+  <div class="imperial-card hidden md:block p-0" style="overflow-x: auto;">
+    <table class="imperial-table">
+      <thead>
+        <tr>
+          <th style="width: 64px;">編號</th>
+          <th>吉利名稱</th>
+          <th>描述</th>
+          <th style="width: 80px;">年份</th>
+          <th style="width: 100px; text-align: right;">成本 (HKD)</th>
+          <th>供應商</th>
+          <th style="width: 80px; text-align: right;">競投次數</th>
+          <th style="width: 100px; text-align: right;">競投總額</th>
+          <th style="width: 60px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr>
+          <td style="font-weight: 600; color: var(--primary);">#{{ item.item_id }}</td>
+          <td>
+            {% if item.name_1_auspicious %}
+            <span class="font-label-lg" style="color: var(--on-surface);">{{ item.name_1_auspicious }}</span>
+            {% else %}
+            <span style="color: var(--on-surface-variant);">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if item.name_2_description %}
+            <span class="font-body-sm" style="color: var(--on-surface-variant);">{{ item.name_2_description }}</span>
+            {% else %}
+            <span style="color: var(--on-surface-variant);">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if item.year %}
+            <span class="chip chip-gold">{{ item.year }}</span>
+            {% else %}
+            <span style="color: var(--on-surface-variant);">—</span>
+            {% endif %}
+          </td>
+          <td style="text-align: right;">
+            {% if item.cost_hkd %}
+            <span style="font-weight: 500;">${{ item.cost_hkd|int }}</span>
+            {% else %}
+            <span style="color: var(--on-surface-variant);">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if item.supplier %}
+            <span class="font-body-sm">{{ item.supplier }}</span>
+            {% else %}
+            <span style="color: var(--on-surface-variant);">—</span>
+            {% endif %}
+          </td>
+          <td style="text-align: right;">
+            <span class="font-body-md">{{ item.bid_count }}</span>
+          </td>
+          <td style="text-align: right; font-weight: 500;">
+            ${{ item.bid_total|int }}
+          </td>
+          <td>
+            <button class="icon-btn" onclick="openItemDetail({{ item.item_id }})"
+                    title="查看詳情">
+              <span class="material-symbols-outlined" style="font-size: 1.125rem;">info</span>
+            </button>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9" style="text-align: center; padding: 3rem 1rem; color: var(--on-surface-variant);">
+            <div class="flex flex-col items-center gap-sm">
+              <span class="material-symbols-outlined" style="font-size: 2.5rem;">inventory_2</span>
+              <p class="font-body-md">暫無聖物記錄</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══ Mobile Card View ═══ -->
+  <div class="md:hidden flex flex-col gap-sm">
+    {% for item in items %}
+    <div class="imperial-card">
+      <div class="flex items-start justify-between mb-sm">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-sm mb-xs">
+            <span style="font-weight: 600; color: var(--primary); font-size: 0.8125rem;">#{{ item.item_id }}</span>
+            {% if item.year %}
+            <span class="chip chip-gold">{{ item.year }}</span>
+            {% endif %}
+          </div>
+          <div class="font-label-lg" style="color: var(--on-surface);">
+            {{ item.name_1_auspicious or '—' }}
+          </div>
+          {% if item.name_2_description %}
+          <div class="font-body-sm" style="color: var(--on-surface-variant);">{{ item.name_2_description }}</div>
+          {% endif %}
+        </div>
+        <button class="icon-btn shrink-0" onclick="openItemDetail({{ item.item_id }})">
+          <span class="material-symbols-outlined">info</span>
+        </button>
+      </div>
+      <div class="flex items-center gap-lg pt-sm" style="border-top: 1px solid var(--outline-variant);">
+        <div>
+          <span class="font-label-md" style="color: var(--on-surface-variant);">成本</span>
+          <div class="font-body-md" style="font-weight: 500;">
+            {% if item.cost_hkd %}${{ item.cost_hkd|int }}{% else %}—{% endif %}
+          </div>
+        </div>
+        <div>
+          <span class="font-label-md" style="color: var(--on-surface-variant);">供應商</span>
+          <div class="font-body-md">{{ item.supplier or '—' }}</div>
+        </div>
+        <div>
+          <span class="font-label-md" style="color: var(--on-surface-variant);">競投</span>
+          <div class="font-body-md" style="font-weight: 500;">${{ item.bid_total|int }}</div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="flex flex-col items-center py-xl" style="color: var(--on-surface-variant);">
+      <span class="material-symbols-outlined" style="font-size: 2.5rem; margin-bottom: 0.5rem;">inventory_2</span>
+      <p class="font-body-md">暫無聖物記錄</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ═══ Item Detail Modal (API JSON Popup) ═══ -->
+<div id="itemDetailModal" class="modal-overlay" style="display: none;">
+  <div class="modal-container" style="max-width: 560px;">
+    <div class="flex items-center justify-between mb-lg">
+      <h2 class="font-headline-md" style="color: var(--on-surface);">聖物詳情</h2>
+      <button class="icon-btn" onclick="closeItemDetail()">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <div id="itemDetailContent" style="min-height: 100px;">
+      <div class="flex items-center justify-center py-xl" style="color: var(--on-surface-variant);">
+        <span class="material-symbols-outlined" style="font-size: 2rem; animation: spin 1s linear infinite;">sync</span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+    padding: 1rem;
+  }
+  .modal-container {
+    background: var(--surface);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    width: 100%;
+    max-width: 560px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .detail-label {
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--on-surface-variant);
+    margin-bottom: 0.125rem;
+  }
+  .detail-value {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9375rem;
+    color: var(--on-surface);
+  }
+</style>
+<script>
+  // ── Search with Enter ──
+  document.addEventListener('DOMContentLoaded', function () {
+    const searchInput = document.getElementById('itemSearch');
+    if (searchInput) {
+      searchInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+          const q = encodeURIComponent(this.value.trim());
+          const url = new URL(window.location.href);
+          if (q) url.searchParams.set('search', q);
+          else url.searchParams.delete('search');
+          window.location.href = url.toString();
+        }
+      });
+    }
+  });
+
+  // ── Item Detail Modal ──
+  async function openItemDetail(itemId) {
+    const modal = document.getElementById('itemDetailModal');
+    const content = document.getElementById('itemDetailContent');
+    modal.style.display = 'flex';
+    content.innerHTML = '<div class="flex items-center justify-center py-xl" style="color: var(--on-surface-variant);">' +
+      '<span class="material-symbols-outlined" style="font-size: 2rem; animation: spin 1s linear infinite;">sync</span>' +
+      '</div>';
+
+    try {
+      const resp = await fetch('/items/' + itemId + '/detail');
+      if (!resp.ok) throw new Error('Not found');
+      const data = await resp.json();
+      renderItemDetail(data);
+    } catch (err) {
+      content.innerHTML = '<div class="flex flex-col items-center py-xl" style="color: var(--tertiary);">' +
+        '<span class="material-symbols-outlined" style="font-size: 2.5rem; margin-bottom: 0.5rem;">error</span>' +
+        '<p class="font-body-md">無法載入詳情</p></div>';
+    }
+  }
+
+  function renderItemDetail(data) {
+    const content = document.getElementById('itemDetailContent');
+    let yearRows = '';
+    if (data.year_data && data.year_data.length) {
+      data.year_data.forEach(function (yd) {
+        yearRows += '<tr>' +
+          '<td class="detail-value">' + (yd.year || '—') + '</td>' +
+          '<td class="detail-value" style="text-align: right;">' + (yd.cost_hkd ? '$' + parseInt(yd.cost_hkd) : '—') + '</td>' +
+          '<td class="detail-value">' + (yd.supplier || '—') + '</td>' +
+          '</tr>';
+      });
+    } else {
+      yearRows = '<tr><td colspan="3" class="detail-value" style="text-align: center; color: var(--on-surface-variant);">暫無年份數據</td></tr>';
+    }
+
+    content.innerHTML = `
+      <div class="flex flex-col gap-md">
+        <div class="flex items-center gap-md pb-md" style="border-bottom: 1px solid var(--outline-variant);">
+          <div class="avatar" style="width: 48px; height: 48px; border-radius: 12px; font-size: 1.25rem;">
+            <span class="material-symbols-outlined">inventory_2</span>
+          </div>
+          <div>
+            <div class="font-headline-sm" style="color: var(--on-surface);">${data.name_1_auspicious || '—'}</div>
+            <div class="font-body-sm" style="color: var(--on-surface-variant);">${data.name_2_description || '—'}</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-md">
+          <div>
+            <div class="detail-label">聖物編號</div>
+            <div class="detail-value" style="font-weight: 600; color: var(--primary);">#${data.item_id}</div>
+          </div>
+          <div>
+            <div class="detail-label">競投次數</div>
+            <div class="detail-value">${data.bid_count} 次</div>
+          </div>
+          <div>
+            <div class="detail-label">競投總額</div>
+            <div class="detail-value" style="font-weight: 600;">$${parseInt(data.bid_total)}</div>
+          </div>
+          <div>
+            <div class="detail-label">建立時間</div>
+            <div class="detail-value">${data.created_at ? new Date(data.created_at).toLocaleDateString('zh-HK') : '—'}</div>
+          </div>
+        </div>
+
+        <div class="pt-md" style="border-top: 1px solid var(--outline-variant);">
+          <div class="detail-label mb-sm">年份數據</div>
+          <table class="imperial-table">
+            <thead>
+              <tr>
+                <th>年份</th>
+                <th style="text-align: right;">成本</th>
+                <th>供應商</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${yearRows}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  function closeItemDetail() {
+    document.getElementById('itemDetailModal').style.display = 'none';
+  }
+
+  // Close modal on overlay click
+  document.addEventListener('DOMContentLoaded', function () {
+    const overlay = document.getElementById('itemDetailModal');
+    overlay.addEventListener('click', function (e) {
+      if (e.target === this) closeItemDetail();
+    });
+  });
+</script>
+{% endblock %}

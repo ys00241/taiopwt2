@@ -1,4 +1,5 @@
 """Item model — 聖物."""
+import uuid
 from app.extensions import db
 
 
@@ -7,8 +8,8 @@ class Item(db.Model):
 
     __tablename__ = "items"
 
-    id = db.Column(db.String, primary_key=True)
-    item_id = db.Column(db.Integer, unique=True, nullable=False, index=True)
+    id = db.Column(db.String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    item_id = db.Column(db.Integer, unique=True, nullable=False, index=True, comment="聖物編號")
     name_1_auspicious = db.Column(db.String(300), comment="吉利名稱 (e.g. 一帆風順)")
     name_2_description = db.Column(db.String(300), comment="描述名稱 (e.g. 花炮頭)")
     year_data = db.Column(db.Text, comment="JSON array of {year, cost_hkd, supplier}")

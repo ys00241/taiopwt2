@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% from "components/stat_card.html" import stat_card %}
+
+{% block title %}上年欠款 — 寶榮堂花炮會{% endblock %}
+{% block page_title %}上年欠款 Previous Debt{% endblock %}
+
+{% block head %}
+<style>
+  .debt-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid var(--outline-variant);
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .debt-row:last-child { border-bottom: none; }
+  .debt-row:hover { background: var(--surface-container); }
+  .debt-row:active { background: var(--surface-container-high); }
+
+  .unpaid-highlight {
+    color: var(--tertiary);
+    font-weight: 700;
+  }
+
+  .batch-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: var(--surface-container);
+    border-radius: 10px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ── Checkbox styling ── */
+  .debt-checkbox {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--primary);
+    border-radius: 4px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 640px) {
+    .debt-row { padding: 0.75rem; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+
+  <!-- ═══ Header: Year Selector + Search ═══ -->
+  <div class="flex flex-col sm:flex-row items-start sm:items-center gap-md mb-lg">
+    <div class="flex items-center gap-sm">
+      <label class="form-label mb-0" for="yearSelect">年度:</label>
+      <select class="year-selector" id="yearSelect" onchange="onYearChange(this.value)">
+        {% set current_year = year|default(current_year, true) %}
+        {% for y in range(current_year, current_year - 6, -1) %}
+        <option value="{{ y }}" {% if y == current_year %}selected{% endif %}>{{ y }} 年度</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="search-input-wrapper flex-1 max-w-xs">
+      <span class="material-symbols-outlined">search</span>
+      <input type="text" placeholder="搜尋會員名稱..." id="debtSearch" oninput="filterDebts(this.value)">
+    </div>
+  </div>
+
+  <!-- ═══ Stat Summary ═══ -->
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-md mb-lg">
+    {{ stat_card("總欠款", "$%s"|format(stats.total_due|default(0)|int), "warning", "var(--tertiary)") }}
+    {{ stat_card("已還金額", "$%s"|format(stats.total_paid|default(0)|int), "check_circle", "#166534") }}
+    {{ stat_card("未還金額", "$%s"|format(stats.unpaid|default(0)|int), "error", "var(--tertiary)",
+                  "共 %s 筆"|format(stats.unpaid_count|default(0))) }}
+  </div>
+
+  <!-- ═══ Batch Actions Bar ═══ -->
+  <div class="batch-bar mb-md">
+    <span class="font-label-md shrink-0" style="color: var(--on-surface-variant);">批量操作:</span>
+    <button class="btn-primary" style="padding: 0.375rem 0.875rem; font-size: 0.8125rem;" onclick="generatePDF()">
+      <span class="material-symbols-outlined" style="font-size: 1rem;">picture_as_pdf</span>
+      Generate PDF
+    </button>
+    <button class="btn-secondary" style="padding: 0.375rem 0.875rem; font-size: 0.8125rem;" onclick="downloadZIP()">
+      <span class="material-symbols-outlined" style="font-size: 1rem;">folder_zip</span>
+      Download ZIP
+    </button>
+    <span class="font-body-sm text-on-surface-variant ml-auto shrink-0" id="selectedCount">已選 0 項</span>
+  </div>
+
+  <!-- ═══ Member Debt List ═══ -->
+  <div class="imperial-card p-0">
+    <div class="px-lg py-md border-b border-outline-variant">
+      <h2 class="font-headline-md" style="color: var(--on-surface);">會員欠款 ({{ year }}年)</h2>
+    </div>
+
+    {% if debts %}
+    <!-- Desktop Table -->
+    <div class="hidden md:block overflow-x-auto">
+      <table class="imperial-table">
+        <thead>
+          <tr>
+            <th style="width: 40px;">
+              <input type="checkbox" class="debt-checkbox" id="selectAll" onchange="toggleAll(this)">
+            </th>
+            <th>會員名稱</th>
+            <th>應繳總額</th>
+            <th>已繳金額</th>
+            <th>未繳金額</th>
+            <th>聖物數量</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for debt in debts %}
+          <tr class="debt-row-tr" data-name="{{ debt.member_name|lower }}">
+            <td>
+              <input type="checkbox" class="debt-checkbox debt-select" value="{{ debt.member_id }}" onchange="updateSelected()">
+            </td>
+            <td>
+              <a href="{{ url_for('pre_event.pre_previous_member', member_id=debt.member_id) }}" class="font-label-lg" style="color: var(--primary); text-decoration: none;">
+                {{ debt.member_name }}
+              </a>
+            </td>
+            <td class="font-label-lg">${{ debt.total_due|int }}</td>
+            <td class="font-label-lg" style="color: #166534;">${{ debt.total_paid|int }}</td>
+            <td class="font-headline-md {% if debt.unpaid > 0 %}unpaid-highlight{% else %}{% endif %}">
+              ${{ debt.unpaid|int }}
+              {% if debt.unpaid > 0 %}<span class="material-symbols-outlined" style="font-size: 1rem; vertical-align: middle;">error</span>{% endif %}
+            </td>
+            <td>{{ debt.item_count }}</td>
+            <td>
+              <a href="{{ url_for('pre_event.pre_previous_member', member_id=debt.member_id) }}" class="btn-secondary" style="padding: 0.25rem 0.75rem; font-size: 0.75rem;">
+                查看
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Mobile Card List -->
+    <div class="md:hidden">
+      {% for debt in debts %}
+      <a href="{{ url_for('pre_event.pre_previous_member', member_id=debt.member_id) }}" class="debt-row text-decoration-none" data-name="{{ debt.member_name|lower }}">
+        <input type="checkbox" class="debt-checkbox debt-select" value="{{ debt.member_id }}" onclick="event.stopPropagation(); updateSelected();">
+        <div class="flex-1 min-w-0">
+          <div class="font-label-lg">{{ debt.member_name }}</div>
+          <div class="flex items-center gap-sm mt-xs">
+            <span class="font-body-sm" style="color: var(--on-surface-variant);">應繳: ${{ debt.total_due|int }}</span>
+            <span class="font-body-sm" style="color: #166534;">已繳: ${{ debt.total_paid|int }}</span>
+          </div>
+          <div class="font-headline-sm {% if debt.unpaid > 0 %}unpaid-highlight{% endif %} mt-xs">
+            未繳: ${{ debt.unpaid|int }}
+            {% if debt.unpaid > 0 %}<span class="material-symbols-outlined" style="font-size: 1rem; vertical-align: middle;">error</span>{% endif %}
+          </div>
+        </div>
+        <span class="material-symbols-outlined" style="color: var(--on-surface-variant);">chevron_right</span>
+      </a>
+      {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="flex flex-col items-center py-xl" style="color: var(--on-surface-variant);">
+      <span class="material-symbols-outlined" style="font-size: 2.5rem; margin-bottom: 0.5rem;">check_circle</span>
+      <p class="font-body-md">{{ year }}年度沒有欠款記錄</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ═══ Pagination ═══ -->
+  {% if pagination and pagination.pages > 1 %}
+  <div class="flex items-center justify-center gap-xs mt-lg">
+    {% if pagination.has_prev %}
+    <a href="?page={{ pagination.prev_num }}&year={{ year }}" class="btn-secondary" style="padding: 0.375rem 0.75rem;">
+      <span class="material-symbols-outlined" style="font-size: 1rem;">chevron_left</span>
+    </a>
+    {% endif %}
+    {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+      {% if p %}
+      <a href="?page={{ p }}&year={{ year }}"
+         class="btn-secondary"
+         style="padding: 0.375rem 0.75rem; {% if p == pagination.page %}background: var(--primary); color: var(--on-primary); border-color: var(--primary);{% endif %}">
+        {{ p }}
+      </a>
+      {% else %}
+      <span class="font-body-sm text-on-surface-variant px-xs">...</span>
+      {% endif %}
+    {% endfor %}
+    {% if pagination.has_next %}
+    <a href="?page={{ pagination.next_num }}&year={{ year }}" class="btn-secondary" style="padding: 0.375rem 0.75rem;">
+      <span class="material-symbols-outlined" style="font-size: 1rem;">chevron_right</span>
+    </a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // ── Year change ──
+  function onYearChange(year) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('year', year);
+    url.searchParams.delete('page');
+    window.location.href = url.toString();
+  }
+
+  // ── Search filter ──
+  function filterDebts(query) {
+    const q = query.toLowerCase().trim();
+    document.querySelectorAll('.debt-row-tr, .debt-row').forEach(el => {
+      const name = (el.dataset.name || '').toLowerCase();
+      el.style.display = (!q || name.includes(q)) ? '' : 'none';
+    });
+  }
+
+  // ── Select All ──
+  function toggleAll(master) {
+    document.querySelectorAll('.debt-select').forEach(cb => cb.checked = master.checked);
+    updateSelected();
+  }
+
+  // ── Update selected count ──
+  function updateSelected() {
+    const checked = document.querySelectorAll('.debt-select:checked').length;
+    document.getElementById('selectedCount').textContent = `已選 ${checked} 項`;
+  }
+
+  // ── Batch actions ──
+  function getSelectedIds() {
+    return Array.from(document.querySelectorAll('.debt-select:checked')).map(cb => cb.value);
+  }
+
+  function generatePDF() {
+    const ids = getSelectedIds();
+    if (ids.length === 0) { alert('請先選擇會員'); return; }
+    window.open('{{ url_for("pre_event.pre_previous") }}/pdf?ids=' + ids.join(','), '_blank');
+  }
+
+  function downloadZIP() {
+    const ids = getSelectedIds();
+    if (ids.length === 0) { alert('請先選擇會員'); return; }
+    window.open('{{ url_for("pre_event.pre_previous") }}/zip?ids=' + ids.join(','), '_blank');
+  }
+</script>
+{% endblock %}

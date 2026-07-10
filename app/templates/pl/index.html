@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}損益表 — 寶榮堂花炮會{% endblock %}
+{% block page_title %}損益表 P&amp;L{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+
+  <!-- ═══ Toolbar ═══ -->
+  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-md mb-lg">
+    <div>
+      <p class="font-body-sm" style="color: var(--on-surface-variant);">
+        {{ year }}年度財務損益概覽
+      </p>
+    </div>
+    <a href="{{ url_for('pl.export_pl_excel', years=year) }}" class="btn-primary">
+      <span class="material-symbols-outlined">download</span>
+      匯出 Excel
+    </a>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-lg">
+
+    <!-- ═══ LEFT: Income Statement ═══ -->
+    <div class="lg:col-span-2 space-y-lg">
+
+      <!-- ── Income Sections ── -->
+      <div class="imperial-card">
+        <div class="flex items-center gap-sm mb-md">
+          <span class="material-symbols-outlined" style="color: #166534; font-size: 1.5rem;">trending_up</span>
+          <h2 class="font-headline-md" style="color: var(--on-surface);">收入 Income</h2>
+        </div>
+
+        <div class="space-y-md">
+          {% for section_name, rows in income_sections.items() %}
+          {% set section_total = income_totals.get(section_name, 0) %}
+          {% if rows %}
+          <div>
+            <div class="flex items-center justify-between mb-sm">
+              <h3 class="font-label-lg" style="color: var(--on-surface);">{{ section_name }}</h3>
+              <span class="font-headline-sm" style="color: #166534;">${{ section_total|int }}</span>
+            </div>
+            <div class="space-y-xs">
+              {% for row in rows %}
+              <div class="flex items-center justify-between py-xs px-sm" style="border-radius: 6px; background: var(--surface-container);">
+                <div class="flex items-center gap-sm min-w-0">
+                  <span class="font-body-sm" style="color: var(--on-surface-variant);">{{ row.subject }}</span>
+                  {% if row.payment_method %}
+                  <span class="chip chip-gold" style="font-size: 0.6875rem;">{{ row.payment_method }}</span>
+                  {% endif %}
+                </div>
+                <span class="font-body-md" style="font-weight: 500;">${{ row.amount_hkd|int }}</span>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+          {% endfor %}
+        </div>
+
+        <!-- Total Income -->
+        <div class="flex items-center justify-between pt-md mt-md" style="border-top: 2px solid var(--outline-variant);">
+          <span class="font-headline-sm" style="color: var(--on-surface);">收入合計</span>
+          <span class="font-headline-lg" style="color: #166534;">${{ total_income|int }}</span>
+        </div>
+      </div>
+
+      <!-- ── Expense Sections ── -->
+      <div class="imperial-card">
+        <div class="flex items-center gap-sm mb-md">
+          <span class="material-symbols-outlined" style="color: var(--tertiary); font-size: 1.5rem;">trending_down</span>
+          <h2 class="font-headline-md" style="color: var(--on-surface);">支出 Expenses</h2>
+        </div>
+
+        <div class="space-y-md">
+          {% for section_name, rows in expense_sections.items() %}
+          {% set section_total = expense_totals.get(section_name, 0) %}
+          <div>
+            <div class="flex items-center justify-between mb-sm">
+              <h3 class="font-label-lg" style="color: var(--on-surface);">{{ section_name }}</h3>
+              <span class="font-headline-sm" style="color: var(--tertiary);">${{ section_total|int }}</span>
+            </div>
+            <div class="space-y-xs">
+              {% for row in rows %}
+              <div class="flex items-center justify-between py-xs px-sm" style="border-radius: 6px; background: var(--surface-container);">
+                <div class="flex items-center gap-sm min-w-0">
+                  <span class="font-body-sm" style="color: var(--on-surface-variant);">{{ row.subject }}</span>
+                  {% if row.payment_method %}
+                  <span class="chip chip-red" style="font-size: 0.6875rem;">{{ row.payment_method }}</span>
+                  {% endif %}
+                </div>
+                <span class="font-body-md" style="font-weight: 500;">${{ row.amount_hkd|int }}</span>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <!-- Total Expense -->
+        <div class="flex items-center justify-between pt-md mt-md" style="border-top: 2px solid var(--outline-variant);">
+          <span class="font-headline-sm" style="color: var(--on-surface);">支出合計</span>
+          <span class="font-headline-lg" style="color: var(--tertiary);">${{ total_expense|int }}</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ═══ RIGHT: Summary Sidebar ═══ -->
+    <div class="space-y-lg">
+
+      <!-- Summary Card -->
+      <div class="imperial-card">
+        <h2 class="font-headline-md mb-md" style="color: var(--on-surface);">摘要 Summary</h2>
+        <div class="space-y-md">
+          <div>
+            <span class="font-label-md" style="color: var(--on-surface-variant);">總收入</span>
+            <div class="font-headline-lg" style="color: #166534;">${{ total_income|int }}</div>
+          </div>
+          <div style="height: 1px; background: var(--outline-variant);"></div>
+          <div>
+            <span class="font-label-md" style="color: var(--on-surface-variant);">總支出</span>
+            <div class="font-headline-lg" style="color: var(--tertiary);">${{ total_expense|int }}</div>
+          </div>
+          <div style="height: 1px; background: var(--outline-variant);"></div>
+          <div>
+            <span class="font-label-md" style="color: var(--on-surface-variant);">盈虧 Surplus</span>
+            <div class="font-headline-xl" style="color: {% if net_profit >= 0 %}#166534{% else %}var(--tertiary){% endif %};">
+              {% if net_profit >= 0 %}+{% endif %}${{ net_profit|int }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick stats -->
+      <div class="imperial-card">
+        <h2 class="font-headline-md mb-md" style="color: var(--on-surface);">統計 Stats</h2>
+        <div class="space-y-sm">
+          <div class="flex items-center justify-between py-xs">
+            <span class="font-body-sm" style="color: var(--on-surface-variant);">收入項目</span>
+            <span class="font-label-lg">{{ income_sections.values()|list|map('length')|sum }}</span>
+          </div>
+          <div class="flex items-center justify-between py-xs">
+            <span class="font-body-sm" style="color: var(--on-surface-variant);">支出項目</span>
+            <span class="font-label-lg">{{ expense_sections.values()|list|map('length')|sum }}</span>
+          </div>
+          <div class="flex items-center justify-between py-xs">
+            <span class="font-body-sm" style="color: var(--on-surface-variant);">支出類別</span>
+            <span class="font-label-lg">{{ expense_sections|length }}</span>
+          </div>
+          {% if total_income > 0 %}
+          <div class="flex items-center justify-between py-xs">
+            <span class="font-body-sm" style="color: var(--on-surface-variant);">支出佔收入比</span>
+            <span class="font-label-lg">{{ (total_expense / total_income * 100)|round(1) }}%</span>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ Multi-Year Comparison ═══ -->
+  {% if years|length > 1 %}
+  <div class="imperial-card mt-lg">
+    <h2 class="font-headline-md mb-md" style="color: var(--on-surface);">多年比較 Multi-Year Comparison</h2>
+    <div class="overflow-x-auto">
+      <table class="imperial-table">
+        <thead>
+          <tr>
+            <th>項目</th>
+            {% for y in years %}
+            <th style="text-align: right;">{{ y }}年</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% set year_data = {} %}
+          {% for y in years %}
+          {% set _ = year_data.update({y: {'income': 0, 'expense': 0, 'net': 0}}) %}
+          {% endfor %}
+
+          {# NOTE: Year-by-year data requires iterating queries.
+             This template shows the current year and placeholders.
+             The actual multi-year data comes from the export route. #}
+
+          <tr>
+            <td style="font-weight: 500;">總收入</td>
+            {% for y in years %}
+            <td style="text-align: right;">
+              {% if y == year %}
+              ${{ total_income|int }}
+              {% else %}
+              <span style="color: var(--on-surface-variant);">—</span>
+              {% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          <tr>
+            <td style="font-weight: 500;">總支出</td>
+            {% for y in years %}
+            <td style="text-align: right;">
+              {% if y == year %}
+              ${{ total_expense|int }}
+              {% else %}
+              <span style="color: var(--on-surface-variant);">—</span>
+              {% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          <tr style="border-top: 2px solid var(--outline-variant);">
+            <td style="font-weight: 700;">盈虧</td>
+            {% for y in years %}
+            <td style="text-align: right; font-weight: 700; color: {% if y == year %}{% if net_profit >= 0 %}#166534{% else %}var(--tertiary){% endif %}{% else %}var(--on-surface-variant){% endif %};">
+              {% if y == year %}
+              {% if net_profit >= 0 %}+{% endif %}${{ net_profit|int }}
+              {% else %}
+              <span style="color: var(--on-surface-variant);">—</span>
+              {% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="font-body-sm mt-md" style="color: var(--on-surface-variant);">
+      <span class="material-symbols-outlined" style="font-size: 1rem; vertical-align: middle;">info</span>
+      使用「匯出 Excel」查看完整多年比較數據
+    </p>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

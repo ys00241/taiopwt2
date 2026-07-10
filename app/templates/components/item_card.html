@@ -1,0 +1,14 @@
+{% macro item_card(sticker_no, name, cost, bidder=None, amount=None) %}
+<div class="bg-surface rounded-xl p-md border border-outline-variant flex gap-md items-center">
+  <div class="w-12 h-12 rounded-lg bg-primary-container flex items-center justify-center shrink-0">
+    <span class="font-headline-md text-on-primary-container">{{ "%02d"|format(sticker_no) }}</span>
+  </div>
+  <div class="flex-1 min-w-0">
+    <h3 class="font-headline-md text-on-surface truncate">{{ name }}</h3>
+    <p class="font-body-sm text-on-surface-variant">底價/成本: ${{ cost }}</p>
+    {% if bidder and amount %}
+    <p class="font-body-sm text-tertiary">競投: {{ bidder }} — ${{ amount }}</p>
+    {% endif %}
+  </div>
+</div>
+{% endmacro %}

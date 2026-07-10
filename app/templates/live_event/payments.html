@@ -1,0 +1,495 @@
+{% extends "base.html" %}
+
+{% block title %}收款台 — 寶榮堂花炮會{% endblock %}
+{% block page_title %}收款台 Payments{% endblock %}
+
+{% block head %}
+<style>
+  /* ═══════════════════════════════════════════
+     Mobile-first Payment Desk — Stitch Design
+     ═══════════════════════════════════════════ */
+
+  /* ── Hero search bar ── */
+  .payment-search-hero {
+    background: linear-gradient(135deg, var(--primary), var(--primary-container));
+    border-radius: 16px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .payment-search-hero .label {
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 0.75rem;
+  }
+  .payment-search-box {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 14px;
+    padding: 0.75rem 1rem;
+    transition: background 0.15s;
+  }
+  .payment-search-box:focus-within {
+    background: rgba(255,255,255,0.2);
+  }
+  .payment-search-box .material-symbols-outlined {
+    font-size: 1.375rem;
+    color: rgba(255,255,255,0.6);
+  }
+  .payment-search-box input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    outline: none;
+    font-family: 'Inter', sans-serif;
+    font-size: 1rem;
+    color: #ffffff;
+  }
+  .payment-search-box input::placeholder {
+    color: rgba(255,255,255,0.4);
+  }
+
+  /* ── Member result card ── */
+  .member-result-card {
+    background: var(--surface);
+    border: 1px solid var(--outline-variant);
+    border-radius: 16px;
+    padding: 1.25rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .member-result-card:active {
+    transform: scale(0.98);
+    border-color: var(--primary-container);
+  }
+  .member-result-card .name {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: var(--on-surface);
+  }
+  .member-result-card .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 99px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 0.75rem;
+  }
+
+  /* ── Recent payments feed ── */
+  .payment-feed-item {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid var(--outline-variant);
+  }
+  .payment-feed-item:last-child { border-bottom: none; }
+  .payment-feed-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--surface-variant);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 0.8125rem;
+    color: var(--on-surface-variant);
+    flex-shrink: 0;
+  }
+
+  /* ── Payment bottom sheet ── */
+  .bottom-sheet-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    background: rgba(0,0,0,0.45);
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .bottom-sheet-overlay.open { display: flex; }
+
+  .bottom-sheet {
+    width: 100%;
+    max-width: 500px;
+    background: var(--surface);
+    border-radius: 20px 20px 0 0;
+    padding: 1.5rem;
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+    max-height: 85vh;
+    overflow-y: auto;
+    animation: slideUp 0.25s ease-out;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  .bottom-sheet-handle {
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--outline-variant);
+    margin: 0 auto 1rem;
+    flex-shrink: 0;
+  }
+
+  /* ── Big amount input ── */
+  .pay-amount-input {
+    width: 100%;
+    padding: 1.25rem;
+    border: 2px solid var(--outline-variant);
+    border-radius: 16px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    font-size: 2.5rem;
+    text-align: center;
+    color: var(--on-surface);
+    background: var(--surface-container);
+    outline: none;
+    -moz-appearance: textfield;
+  }
+  .pay-amount-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(121,89,0,0.1);
+  }
+  .pay-amount-input::-webkit-outer-spin-button,
+  .pay-amount-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  /* ── Payment method big buttons ── */
+  .pay-method-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.625rem;
+  }
+  .pay-method-btn {
+    padding: 1rem 0.5rem;
+    border: 2px solid var(--outline-variant);
+    border-radius: 14px;
+    background: var(--surface);
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: var(--on-surface-variant);
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+    min-height: 56px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+  }
+  .pay-method-btn .material-symbols-outlined {
+    font-size: 1.5rem;
+  }
+  .pay-method-btn.active {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: var(--on-primary);
+  }
+  .pay-method-btn:active { transform: scale(0.96); }
+
+  /* ── Confirm button ── */
+  .btn-pay-confirm {
+    width: 100%;
+    padding: 1rem;
+    border: none;
+    border-radius: 14px;
+    background: #166534;
+    color: #ffffff;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 1.125rem;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+  .btn-pay-confirm:active { opacity: 0.85; }
+
+  @media (max-width: 640px) {
+    .pay-amount-input { font-size: 2rem; }
+    .page-content { padding-left: 0.75rem; padding-right: 0.75rem; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+
+  <!-- ═══ Search Hero ═══ -->
+  <div class="payment-search-hero">
+    <div class="label">收款 Payment Desk</div>
+    <div class="payment-search-box">
+      <span class="material-symbols-outlined">search</span>
+      <input type="text" id="paymentSearch" placeholder="輸入會員姓名搜尋..." autocomplete="off" oninput="searchMember(this.value)">
+    </div>
+    <div id="searchResults" class="mt-sm" style="display: none;"></div>
+  </div>
+
+  <!-- ═══ Member Result (shown after search) ═══ -->
+  <div id="memberResult" style="display: none;"></div>
+
+  <!-- ═══ Recent Payments Feed ═══ -->
+  <div class="imperial-card p-0 mt-lg">
+    <div class="px-lg py-md border-b border-outline-variant">
+      <h2 class="font-headline-md" style="color: var(--on-surface);">最近收款記錄</h2>
+    </div>
+
+    {% if recent_payments %}
+    <div>
+      {% for pmt in recent_payments %}
+      <div class="payment-feed-item">
+        <div class="payment-feed-avatar">{{ pmt.member_name[0] if pmt.member_name else '?' }}</div>
+        <div class="flex-1 min-w-0">
+          <div class="font-label-lg truncate">{{ pmt.member_name or '—' }}</div>
+          <div class="font-body-sm text-on-surface-variant">
+            {{ pmt.handler or '—' }} · 
+            {% if pmt.payment_method == 'CASH' %}現金{% elif pmt.payment_method == 'CHQ' %}支票{% else %}{{ pmt.payment_method }}{% endif %}
+          </div>
+        </div>
+        <div class="text-right shrink-0">
+          <div class="font-headline-md" style="color: #166534;">${{ pmt.amount|int }}</div>
+          <div class="font-body-sm text-on-surface-variant">{{ pmt.created_at[:10] if pmt.created_at else '' }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="flex flex-col items-center py-lg" style="color: var(--on-surface-variant);">
+      <span class="material-symbols-outlined" style="font-size: 2.5rem; margin-bottom: 0.5rem;">payments</span>
+      <p class="font-body-md">暫無收款記錄</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- ═══ PAYMENT BOTTOM SHEET ═══ -->
+<div class="bottom-sheet-overlay" id="paymentSheet">
+  <div class="bottom-sheet">
+    <div class="bottom-sheet-handle"></div>
+
+    <div class="flex items-center justify-between mb-md">
+      <div>
+        <h2 class="font-headline-md" id="paySheetTitle" style="color: var(--on-surface);">收款</h2>
+        <p class="font-body-sm text-on-surface-variant" id="paySheetMember">—</p>
+      </div>
+      <button class="icon-btn" onclick="closePaymentSheet()">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <!-- Summary -->
+    <div class="grid grid-cols-3 gap-sm mb-md p-md" style="background: var(--surface-container); border-radius: 12px;">
+      <div class="text-center">
+        <div class="font-label-md text-on-surface-variant">應繳</div>
+        <div class="font-headline-md" style="color: var(--on-surface);" id="payTotalDue">$0</div>
+      </div>
+      <div class="text-center">
+        <div class="font-label-md text-on-surface-variant">已繳</div>
+        <div class="font-headline-md" style="color: #166534;" id="payTotalPaid">$0</div>
+      </div>
+      <div class="text-center">
+        <div class="font-label-md text-on-surface-variant">未繳</div>
+        <div class="font-headline-md" style="color: var(--tertiary);" id="payUnpaid">$0</div>
+      </div>
+    </div>
+
+    <form id="paymentForm" method="POST" action="{{ url_for('live_event.live_payments') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+      <input type="hidden" name="member_id" id="payMemberId" value="">
+
+      <!-- Amount (huge input) -->
+      <div class="mb-md">
+        <label class="form-label">收款金額</label>
+        <input type="number" class="pay-amount-input" id="payAmount" name="amount" required min="0" step="0.01" placeholder="$0" inputmode="decimal">
+      </div>
+
+      <!-- Payment method (big buttons) -->
+      <div class="mb-md">
+        <label class="form-label">付款方式</label>
+        <div class="pay-method-grid" id="payMethodGrid">
+          <button type="button" class="pay-method-btn active" data-value="CASH" onclick="selectPayMethod(this)">
+            <span class="material-symbols-outlined">payments</span>
+            現金
+          </button>
+          <button type="button" class="pay-method-btn" data-value="CHQ" onclick="selectPayMethod(this)">
+            <span class="material-symbols-outlined">request_quote</span>
+            支票
+          </button>
+          <button type="button" class="pay-method-btn" data-value="轉數快" onclick="selectPayMethod(this)">
+            <span class="material-symbols-outlined">phone_iphone</span>
+            轉數快
+          </button>
+        </div>
+        <input type="hidden" name="payment_method" id="payMethod" value="CASH">
+      </div>
+
+      <!-- Handler -->
+      <div class="mb-lg">
+        <label class="form-label">經手人</label>
+        <select class="form-input" name="handler">
+          <option value="管理員">管理員</option>
+          <option value="工作人員">工作人員</option>
+        </select>
+      </div>
+
+      <button type="submit" class="btn-pay-confirm">
+        <span class="material-symbols-outlined">check_circle</span>
+        確認收款 $0
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let members = {{ members_json|default('[]')|safe }};
+
+  // ════════════════════════════════════════
+  // Member Search
+  // ════════════════════════════════════════
+  let searchTimeout;
+
+  function searchMember(query) {
+    clearTimeout(searchTimeout);
+    const resultsDiv = document.getElementById('searchResults');
+    const memberDiv = document.getElementById('memberResult');
+
+    if (!query.trim()) {
+      resultsDiv.style.display = 'none';
+      memberDiv.style.display = 'none';
+      return;
+    }
+
+    searchTimeout = setTimeout(() => {
+      const q = query.toLowerCase().trim();
+      const matches = members.filter(m => m.name.toLowerCase().includes(q));
+
+      if (matches.length === 0) {
+        resultsDiv.innerHTML = `<div class="font-body-sm" style="color: rgba(255,255,255,0.6); padding: 0.5rem 0;">找不到會員</div>`;
+        resultsDiv.style.display = 'block';
+        memberDiv.style.display = 'none';
+        return;
+      }
+
+      if (matches.length === 1) {
+        resultsDiv.style.display = 'none';
+        showMemberResult(matches[0]);
+        return;
+      }
+
+      resultsDiv.innerHTML = matches.map(m =>
+        `<div class="font-body-sm" style="color: #ffffff; padding: 0.5rem 0; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.1);"
+              onclick="showMemberResult({id:${m.id}, name:'${m.name.replace(/'/g, "\\'")}', total_due:${m.total_due||0}, total_paid:${m.total_paid||0}, unpaid:${m.unpaid||0}})">${m.name}</div>`
+      ).join('');
+      resultsDiv.style.display = 'block';
+      memberDiv.style.display = 'none';
+    }, 200);
+  }
+
+  function showMemberResult(member) {
+    const div = document.getElementById('memberResult');
+    div.style.display = 'block';
+    div.innerHTML = `
+      <div class="member-result-card" onclick="openPaymentSheet(${member.id}, '${member.name.replace(/'/g, "\\'")}', ${member.total_due||0}, ${member.total_paid||0}, ${member.unpaid||0})">
+        <div class="flex items-center justify-between mb-sm">
+          <span class="name">${member.name}</span>
+          <span class="material-symbols-outlined" style="color: var(--on-surface-variant);">chevron_right</span>
+        </div>
+        <div class="flex items-center gap-md">
+          <div>
+            <span class="font-body-sm text-on-surface-variant">應繳</span>
+            <div class="font-label-lg">$${member.total_due||0}</div>
+          </div>
+          <div>
+            <span class="font-body-sm text-on-surface-variant">已繳</span>
+            <div class="font-label-lg" style="color: #166534;">$${member.total_paid||0}</div>
+          </div>
+          <div>
+            <span class="font-body-sm text-on-surface-variant">未繳</span>
+            <div class="font-headline-md" style="color: var(--tertiary);">$${member.unpaid||0}</div>
+          </div>
+        </div>
+        ${member.unpaid > 0 ? `<div class="mt-sm"><span class="badge" style="background: #fef2f2; color: var(--tertiary);">尚有欠款</span></div>` : `<div class="mt-sm"><span class="badge" style="background: #f0fdf4; color: #166534;">已繳清</span></div>`}
+      </div>
+    `;
+    document.getElementById('searchResults').style.display = 'none';
+  }
+
+  // ════════════════════════════════════════
+  // Payment Sheet
+  // ════════════════════════════════════════
+  function openPaymentSheet(memberId, memberName, totalDue, totalPaid, unpaid) {
+    document.getElementById('payMemberId').value = memberId;
+    document.getElementById('paySheetTitle').textContent = `收款 — ${memberName}`;
+    document.getElementById('paySheetMember').textContent = `應繳: $${totalDue} · 未繳: $${unpaid}`;
+    document.getElementById('payTotalDue').textContent = `$${totalDue}`;
+    document.getElementById('payTotalPaid').textContent = `$${totalPaid}`;
+    document.getElementById('payUnpaid').textContent = `$${unpaid}`;
+    document.getElementById('payAmount').value = unpaid > 0 ? unpaid : '';
+    document.getElementById('paymentSheet').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    updatePayConfirmAmount();
+    document.getElementById('payAmount').focus();
+  }
+
+  function closePaymentSheet() {
+    document.getElementById('paymentSheet').classList.remove('open');
+    document.body.style.overflow = '';
+    document.getElementById('paymentForm').reset();
+    document.getElementById('payMemberId').value = '';
+    document.getElementById('payMethod').value = 'CASH';
+    document.querySelectorAll('.pay-method-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('.pay-method-btn[data-value="CASH"]').classList.add('active');
+  }
+
+  // ── Close on overlay ──
+  document.getElementById('paymentSheet')?.addEventListener('click', function(e) {
+    if (e.target === this) closePaymentSheet();
+  });
+
+  // ════════════════════════════════════════
+  // Payment Method Selection
+  // ════════════════════════════════════════
+  function selectPayMethod(btn) {
+    document.querySelectorAll('.pay-method-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('payMethod').value = btn.dataset.value;
+  }
+
+  // ════════════════════════════════════════
+  // Update confirm button amount
+  // ════════════════════════════════════════
+  document.getElementById('payAmount')?.addEventListener('input', updatePayConfirmAmount);
+
+  function updatePayConfirmAmount() {
+    const val = document.getElementById('payAmount').value;
+    const btn = document.querySelector('.btn-pay-confirm');
+    if (btn) {
+      btn.innerHTML = `<span class="material-symbols-outlined">check_circle</span> 確認收款 $${parseInt(val) || 0}`;
+    }
+  }
+</script>
+{% endblock %}

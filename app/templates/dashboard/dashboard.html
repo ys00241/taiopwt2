@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% from "components/stat_card.html" import stat_card %}
+
+{% block title %}儀表板 — 寶榮堂花炮會{% endblock %}
+{% block page_title %}儀表板 Dashboard{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+
+  <!-- ═══ Stat Cards Grid ═══ -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md mb-lg">
+    {{ stat_card("競投總額", "$%s"|format(stats.bid_total|int), "payments", "var(--primary)") }}
+    {{ stat_card("已收金額", "$%s"|format(stats.paid_total|int), "account_balance_wallet", "var(--primary)") }}
+    {{ stat_card("未收金額", "$%s"|format(stats.unpaid_total|int), "warning", "var(--tertiary)",
+                  "前年未交: %s 筆"|format(stats.prev_unpaid) if stats.prev_unpaid > 0 else "") }}
+    {{ stat_card("聖物數量", stats.this_year_items, "inventory_2", "var(--on-surface-variant)") }}
+    {{ stat_card("會員人數", stats.members, "groups", "var(--on-surface-variant)") }}
+    {{ stat_card("支出總額", "$%s"|format(stats.expenses|int), "receipt_long", "var(--on-surface-variant)") }}
+  </div>
+
+  <!-- ═══ Quick Actions ═══ -->
+  <div class="mb-lg">
+    <h2 class="font-headline-md mb-sm" style="color: var(--on-surface);">快速操作</h2>
+    <div class="flex flex-wrap gap-sm">
+      <a href="{{ url_for('live_event.live_bidding') }}" class="btn-primary">
+        <span class="material-symbols-outlined">gavel</span>
+        競投台
+      </a>
+      <a href="{{ url_for('live_event.live_payments') }}" class="btn-primary">
+        <span class="material-symbols-outlined">payments</span>
+        收款台
+      </a>
+      <a href="{{ url_for('pre_event.pre_previous') }}" class="btn-secondary">
+        <span class="material-symbols-outlined">description</span>
+        欠款管理
+      </a>
+      <a href="{{ url_for('live_event.live_dashboard') }}" class="btn-secondary">
+        <span class="material-symbols-outlined">monitoring</span>
+        Live Dashboard
+      </a>
+    </div>
+  </div>
+
+  <!-- ═══ Two-column: Recent Bids + Upcoming Events ═══ -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-lg">
+
+    <!-- Recent Bids -->
+    <div class="imperial-card">
+      <div class="flex items-center justify-between mb-md">
+        <h2 class="font-headline-md" style="color: var(--on-surface);">最近競投</h2>
+        <a href="{{ url_for('bids.list_bids') }}" class="font-body-sm" style="color: var(--primary); text-decoration: none;">
+          查看全部 &rarr;
+        </a>
+      </div>
+
+      {% if recent_bids %}
+      <table class="imperial-table">
+        <thead>
+          <tr>
+            <th>會員</th>
+            <th>聖物</th>
+            <th>金額</th>
+            <th>狀態</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for bid in recent_bids %}
+          <tr>
+            <td>{{ bid.member.name if bid.member else '—' }}</td>
+            <td>{{ bid.item.name if bid.item else '—' }}</td>
+            <td>${{ bid.bid_amount|int }}</td>
+            <td>
+              {% if bid.paid_amount and bid.paid_amount >= bid.bid_amount %}
+              <span class="chip chip-green">已收</span>
+              {% elif bid.paid_amount and bid.paid_amount > 0 %}
+              <span class="chip chip-gold">部分</span>
+              {% else %}
+              <span class="chip chip-red">未收</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="flex flex-col items-center py-xl" style="color: var(--on-surface-variant);">
+        <span class="material-symbols-outlined" style="font-size: 2.5rem; margin-bottom: 0.5rem;">gavel</span>
+        <p class="font-body-md">暫無競投記錄</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Upcoming Events -->
+    <div class="imperial-card">
+      <div class="flex items-center justify-between mb-md">
+        <h2 class="font-headline-md" style="color: var(--on-surface);">即將舉行</h2>
+        <a href="{{ url_for('editions.list_editions') }}" class="font-body-sm" style="color: var(--primary); text-decoration: none;">
+          查看全部 &rarr;
+        </a>
+      </div>
+
+      {% if upcoming_events %}
+      <div class="flex flex-col gap-sm">
+        {% for event in upcoming_events %}
+        <div class="flex items-center gap-md p-sm" style="border-radius: 10px; background: var(--surface-container);">
+          <div class="flex flex-col items-center shrink-0" style="min-width: 48px;">
+            <span class="font-headline-sm" style="color: var(--primary);">{{ event.day }}</span>
+            <span class="font-body-sm" style="color: var(--on-surface-variant);">{{ event.month }}</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-label-lg truncate" style="color: var(--on-surface);">{{ event.title }}</div>
+            <div class="font-body-sm" style="color: var(--on-surface-variant);">{{ event.description }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="flex flex-col items-center py-xl" style="color: var(--on-surface-variant);">
+        <span class="material-symbols-outlined" style="font-size: 2.5rem; margin-bottom: 0.5rem;">event</span>
+        <p class="font-body-md">暫無即將舉行的活動</p>
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <!-- ═══ Sponsor / 贊助 Summary ═══ -->
+  <div class="imperial-card mt-lg">
+    <div class="flex items-center justify-between mb-md">
+      <h2 class="font-headline-md" style="color: var(--on-surface);">贊助總額 ({{ year }}年)</h2>
+    </div>
+    <div class="flex items-center gap-lg">
+      <div>
+        <span class="font-label-md" style="color: var(--on-surface-variant);">贊助收入</span>
+        <div class="font-headline-lg" style="color: var(--primary);">${{ stats.sponsors|int }}</div>
+      </div>
+      <div style="width: 1px; height: 48px; background: var(--outline-variant);"></div>
+      <div>
+        <span class="font-label-md" style="color: var(--on-surface-variant);">前年未交競投</span>
+        <div class="font-headline-lg" style="color: var(--tertiary);">{{ stats.prev_unpaid }} 筆</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Any dashboard-specific JS can go here
+  console.log('Dashboard loaded — 寶榮堂花炮會');
+</script>
+{% endblock %}

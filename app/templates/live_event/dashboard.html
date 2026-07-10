@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+
+{% block title %}Live Dashboard — 寶榮堂花炮會{% endblock %}
+{% block page_title %}Live Dashboard{% endblock %}
+
+{% block head %}
+<style>
+  /* ═══════════════════════════════════════════
+     Projector-friendly Dashboard — Stitch Design
+     MAXIMUM CONTRAST · LARGE TEXT · AUTO-REFRESH
+     ═══════════════════════════════════════════ */
+
+  html { font-size: 18px; }
+  body { background: #2D2822; }
+
+  /* ── Layout tweaks for projector mode ── */
+  .main-wrapper {
+    margin-left: 0 !important;
+    background: #2D2822;
+  }
+  .top-header {
+    background: #2D2822 !important;
+    border-bottom-color: rgba(255,255,255,0.08) !important;
+  }
+  .top-header .page-title { color: #ffffff !important; }
+  .sidebar { display: none !important; }
+  .bottom-nav { display: none !important; }
+
+  /* ── Auto-refresh indicator ── */
+  .refresh-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.875rem;
+    border-radius: 99px;
+    background: rgba(255,255,255,0.08);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.5);
+  }
+  .refresh-indicator .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* ── Giant stat cards ── */
+  .dash-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0.5rem;
+  }
+  @media (min-width: 768px) {
+    .dash-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (min-width: 1024px) {
+    .dash-grid { grid-template-columns: repeat(5, 1fr); }
+  }
+
+  .dash-stat {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    padding: 1.5rem 1.25rem;
+    text-align: center;
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+  }
+  .dash-stat:hover {
+    background: rgba(255,255,255,0.08);
+  }
+  .dash-stat .icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+  }
+  .dash-stat .label {
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 0.375rem;
+  }
+  .dash-stat .value {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    font-size: 2.25rem;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+  @media (min-width: 1024px) {
+    .dash-stat .value { font-size: 2.75rem; }
+  }
+
+  .dash-stat.gold .value { color: var(--primary-container); }
+  .dash-stat.green .value { color: #4ade80; }
+  .dash-stat.red .value { color: #f87171; }
+  .dash-stat.white .value { color: #ffffff; }
+
+  .dash-stat .sub {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8125rem;
+    color: rgba(255,255,255,0.35);
+    margin-top: 0.375rem;
+  }
+
+  /* ── Recent Activity Section ── */
+  .dash-activity {
+    max-width: 1200px;
+    margin: 1.25rem auto;
+    padding: 0 0.5rem;
+  }
+  .dash-activity h3 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 0.75rem;
+  }
+  .activity-scroll {
+    display: flex;
+    gap: 0.75rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.5rem;
+  }
+  .activity-scroll::-webkit-scrollbar { height: 3px; }
+  .activity-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+  .activity-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 99px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8125rem;
+    color: rgba(255,255,255,0.7);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .activity-chip .amount {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    color: var(--primary-container);
+  }
+  .activity-chip .amount.green { color: #4ade80; }
+
+  @media (max-width: 640px) {
+    html { font-size: 16px; }
+    .dash-grid { gap: 0.75rem; }
+    .dash-stat { padding: 1rem 0.75rem; min-height: 140px; }
+    .dash-stat .value { font-size: 1.75rem; }
+  }
+
+  /* ── Year selector override ── */
+  .year-selector {
+    background: rgba(255,255,255,0.08) !important;
+    border-color: rgba(255,255,255,0.12) !important;
+    color: #ffffff !important;
+  }
+  .year-selector option { background: #2D2822; color: #ffffff; }
+
+  /* ── Notification icon override ── */
+  .icon-btn { color: rgba(255,255,255,0.5) !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+
+  <!-- ═══ Auto-refresh indicator ═══ -->
+  <div class="flex items-center justify-between mb-lg" style="max-width: 1200px; margin-left: auto; margin-right: auto; padding: 0 0.5rem;">
+    <div class="refresh-indicator">
+      <span class="dot"></span>
+      <span>自動更新 — {{ refresh_interval|default(30) }}秒</span>
+    </div>
+    <div class="font-headline-sm" style="color: var(--primary-container);">即時數據</div>
+  </div>
+
+  <!-- ═══ Giant Stat Cards ═══ -->
+  <div class="dash-grid">
+    <!-- 競投總額 -->
+    <div class="dash-stat gold">
+      <div class="icon">💰</div>
+      <div class="label">競投總額</div>
+      <div class="value" id="statBidTotal">${{ stats.bid_total|default(0)|int }}</div>
+    </div>
+
+    <!-- 已收總額 -->
+    <div class="dash-stat green">
+      <div class="icon">✅</div>
+      <div class="label">已收總額</div>
+      <div class="value" id="statPaidTotal">${{ stats.paid_total|default(0)|int }}</div>
+    </div>
+
+    <!-- 尚餘聖物 -->
+    <div class="dash-stat white">
+      <div class="icon">📦</div>
+      <div class="label">尚餘聖物</div>
+      <div class="value" id="statRemaining">{{ stats.remaining_items|default(0) }}</div>
+      <div class="sub">/ {{ stats.total_items|default(0) }} 總數</div>
+    </div>
+
+    <!-- 即時支出 -->
+    <div class="dash-stat red">
+      <div class="icon">📋</div>
+      <div class="label">即時支出</div>
+      <div class="value" id="statExpenses">${{ stats.live_expenses|default(0)|int }}</div>
+    </div>
+
+    <!-- 最高競投價 -->
+    <div class="dash-stat gold">
+      <div class="icon">🏆</div>
+      <div class="label">最高競投價</div>
+      <div class="value" id="statHighestBid">${{ stats.highest_bid|default(0)|int }}</div>
+      {% if stats.highest_bidder %}
+      <div class="sub">{{ stats.highest_bidder }}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ═══ Recent Activity Feed ═══ -->
+  <div class="dash-activity">
+    <h3>最新活動</h3>
+    <div class="activity-scroll">
+      {% if recent_activities %}
+      {% for act in recent_activities %}
+      <div class="activity-chip">
+        <span>{{ act.label }}</span>
+        <span class="amount {% if act.type == 'payment' %}green{% endif %}">{{ act.value }}</span>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div class="activity-chip">
+        <span>等待活動開始...</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ═══ Quick Navigation (large touch targets for projector control) ═══ -->
+  <div style="max-width: 1200px; margin: 1.25rem auto 0; padding: 0 0.5rem;">
+    <div class="flex flex-wrap gap-sm">
+      <a href="{{ url_for('live_event.live_bidding') }}" class="btn-primary" style="padding: 0.75rem 1.5rem; font-size: 1rem;">
+        <span class="material-symbols-outlined">gavel</span>
+        競投台
+      </a>
+      <a href="{{ url_for('live_event.live_payments') }}" class="btn-primary" style="padding: 0.75rem 1.5rem; font-size: 1rem;">
+        <span class="material-symbols-outlined">payments</span>
+        收款台
+      </a>
+      <a href="{{ url_for('live_event.live_expenses') }}" class="btn-secondary" style="padding: 0.75rem 1.5rem; font-size: 1rem; background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15); color: rgba(255,255,255,0.7);">
+        <span class="material-symbols-outlined">receipt_long</span>
+        即時支出
+      </a>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // ════════════════════════════════════════
+  // Auto-refresh — polls the server every N seconds
+  // ════════════════════════════════════════
+  const REFRESH_INTERVAL = {{ refresh_interval|default(30) }} * 1000;
+
+  async function refreshDashboard() {
+    try {
+      const resp = await fetch('{{ url_for("live_event.live_dashboard_api") }}');
+      if (!resp.ok) return;
+      const data = await resp.json();
+
+      // Update stats
+      const bidTotal = document.getElementById('statBidTotal');
+      const paidTotal = document.getElementById('statPaidTotal');
+      const remaining = document.getElementById('statRemaining');
+      const expenses = document.getElementById('statExpenses');
+      const highestBid = document.getElementById('statHighestBid');
+
+      if (bidTotal && data.bid_total !== undefined) bidTotal.textContent = '$' + data.bid_total;
+      if (paidTotal && data.paid_total !== undefined) paidTotal.textContent = '$' + data.paid_total;
+      if (remaining && data.remaining_items !== undefined) remaining.textContent = data.remaining_items;
+      if (expenses && data.live_expenses !== undefined) expenses.textContent = '$' + data.live_expenses;
+      if (highestBid && data.highest_bid !== undefined) highestBid.textContent = '$' + data.highest_bid;
+
+    } catch (e) {
+      console.warn('Dashboard refresh failed', e);
+    }
+  }
+
+  // Start auto-refresh
+  if (REFRESH_INTERVAL > 0) {
+    setInterval(refreshDashboard, REFRESH_INTERVAL);
+    console.log('Dashboard auto-refresh started — every ' + (REFRESH_INTERVAL/1000) + 's');
+  }
+</script>
+{% endblock %}

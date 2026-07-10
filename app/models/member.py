@@ -1,4 +1,5 @@
 """Member model — 會員資料."""
+import uuid
 from app.extensions import db
 
 
@@ -7,8 +8,8 @@ class Member(db.Model):
 
     __tablename__ = "members"
 
-    id = db.Column(db.String, primary_key=True)
-    member_id = db.Column(db.Integer, unique=True, nullable=False, index=True)
+    id = db.Column(db.String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    member_id = db.Column(db.Integer, unique=True, nullable=False, index=True, comment="會員編號")
     name = db.Column(db.String(200), nullable=False, comment="會員姓名")
     phone = db.Column(db.String(50), comment="電話")
     phone_2 = db.Column(db.String(50), comment="後備電話")
@@ -18,7 +19,8 @@ class Member(db.Model):
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
 
     # Relationships
-    bids = db.relationship("Bid", back_populates="member", lazy="dynamic")
+    bids = db.relationship("Bid", back_populates="member", lazy="dynamic",
+                           foreign_keys="Bid.member_id")
 
     def __repr__(self) -> str:
         return f"<Member {self.member_id}: {self.name}>"

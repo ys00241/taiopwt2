@@ -1,4 +1,5 @@
 """Edition model — 屆別 / 年度."""
+import uuid
 from app.extensions import db
 
 
@@ -7,7 +8,7 @@ class Edition(db.Model):
 
     __tablename__ = "editions"
 
-    id = db.Column(db.String, primary_key=True)
+    id = db.Column(db.String, primary_key=True, default=lambda: str(uuid.uuid4()))
     edition_id = db.Column(db.Integer, comment="屆別編號")
     edition_no = db.Column(db.Integer, comment="屆數")
     year = db.Column(db.Integer, nullable=False, index=True, comment="年份")

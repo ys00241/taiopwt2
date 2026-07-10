@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}投標記錄 — 寶榮堂花炮會{% endblock %}
+{% block page_title %}投標記錄 Bids{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+
+  <!-- ═══ Toolbar ═══ -->
+  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-md mb-lg">
+    <!-- Search -->
+    <div class="flex items-center gap-md flex-1 w-full sm:w-auto">
+      <div class="search-input-wrapper flex-1 sm:max-w-xs">
+        <span class="material-symbols-outlined">search</span>
+        <input type="text" id="searchInput" placeholder="搜尋會員 / 聖物名稱..."
+               value="{{ search|default('') }}"
+               onkeydown="if(event.key==='Enter'){const url=new URL(window.location.href);url.searchParams.set('search',this.value.trim());window.location.href=url.toString();}">
+      </div>
+      <button class="btn-secondary" onclick="clearSearch()">
+        <span class="material-symbols-outlined">close</span>
+        清除
+      </button>
+    </div>
+
+    <!-- Export CSV -->
+    <a href="{{ url_for('bids.export_bids_csv', year=year) }}" class="btn-primary">
+      <span class="material-symbols-outlined">download</span>
+      匯出 CSV
+    </a>
+  </div>
+
+  <!-- ═══ Bids Table ═══ -->
+  <div class="imperial-card overflow-hidden !p-0">
+    <div class="overflow-x-auto">
+      <table class="imperial-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>年份</th>
+            <th>會員名稱</th>
+            <th>會員編號</th>
+            <th>聖物名稱</th>
+            <th style="text-align: right;">投標金額</th>
+            <th style="text-align: right;">已付金額</th>
+            <th style="text-align: right;">未付金額</th>
+            <th>狀態</th>
+            <th>經手人</th>
+            <th>備註</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if bids %}
+          {% for bid in bids %}
+          {% set unpaid = (bid.bid_amount|default(0)) - (bid.paid_amount|default(0)) %}
+          <tr>
+            <td style="color: var(--on-surface-variant); font-size: 0.8125rem;">{{ loop.index }}</td>
+            <td>{{ bid.year }}</td>
+            <td>
+              <span class="font-label-lg" style="color: var(--on-surface);">
+                {{ bid.member.name if bid.member else '—' }}
+              </span>
+            </td>
+            <td style="color: var(--on-surface-variant); font-size: 0.8125rem;">
+              {{ bid.member.member_id if bid.member else '—' }}
+            </td>
+            <td>
+              {% if bid.item %}
+              <span class="font-body-md">{{ bid.item.name_1_auspicious or bid.item.name_2_description or '—' }}</span>
+              {% else %}
+              <span style="color: var(--on-surface-variant);">—</span>
+              {% endif %}
+            </td>
+            <td style="text-align: right; font-weight: 600;">${{ bid.bid_amount|int }}</td>
+            <td style="text-align: right;">${{ bid.paid_amount|int }}</td>
+            <td style="text-align: right; {% if unpaid > 0 %}color: var(--tertiary); font-weight: 600;{% endif %}">
+              ${{ unpaid|int }}
+            </td>
+            <td>
+              {% if bid.paid_amount and bid.paid_amount >= bid.bid_amount %}
+              <span class="chip chip-green">已收</span>
+              {% elif bid.paid_amount and bid.paid_amount > 0 %}
+              <span class="chip chip-gold">部分</span>
+              {% else %}
+              <span class="chip chip-red">未收</span>
+              {% endif %}
+            </td>
+            <td style="color: var(--on-surface-variant);">{{ bid.handler or '—' }}</td>
+            <td style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--on-surface-variant);">
+              {{ bid.remarks or '—' }}
+            </td>
+          </tr>
+          {% endfor %}
+          {% else %}
+          <tr>
+            <td colspan="11" style="text-align: center; padding: 3rem 1rem; color: var(--on-surface-variant);">
+              <div class="flex flex-col items-center gap-sm">
+                <span class="material-symbols-outlined" style="font-size: 2.5rem;">gavel</span>
+                <p class="font-body-md">暫無投標記錄</p>
+                {% if search %}
+                <p class="font-body-sm">未找到符合「{{ search }}」的記錄</p>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══ Summary Bar ═══ -->
+  {% if bids %}
+  {% set total_bid = bids|sum(attribute='bid_amount') %}
+  {% set total_paid = bids|sum(attribute='paid_amount') %}
+  {% set total_unpaid = total_bid - total_paid %}
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-md mt-lg">
+    <div class="imperial-card">
+      <span class="font-label-md" style="color: var(--on-surface-variant);">總投標金額</span>
+      <div class="font-headline-lg" style="color: var(--on-surface);">${{ total_bid|int }}</div>
+    </div>
+    <div class="imperial-card">
+      <span class="font-label-md" style="color: var(--on-surface-variant);">已收總額</span>
+      <div class="font-headline-lg" style="color: #166534;">${{ total_paid|int }}</div>
+    </div>
+    <div class="imperial-card">
+      <span class="font-label-md" style="color: var(--on-surface-variant);">未收總額</span>
+      <div class="font-headline-lg" style="{% if total_unpaid > 0 %}color: var(--tertiary);{% else %}color: var(--on-surface);{% endif %}">
+        ${{ total_unpaid|int }}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function clearSearch() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('search');
+  window.location.href = url.toString();
+}
+</script>
+{% endblock %}

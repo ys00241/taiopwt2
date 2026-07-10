@@ -8,6 +8,7 @@ payment tracking, financial management, and photo gallery features.
 
 from flask import Flask
 from config import config_by_name
+from app.extensions import db, login_manager
 
 
 def create_app(config_name: str | None = None) -> Flask:
@@ -28,31 +29,58 @@ def create_app(config_name: str | None = None) -> Flask:
         import os
         config_name = os.environ.get("FLASK_ENV", "development")
 
-    app = Flask(__name__)
-    app.config.from_object(config_by_name.get(config_name, config_by_name["default"]))
+    flask_app = Flask(__name__)
+    flask_app.config.from_object(config_by_name.get(config_name, config_by_name["default"]))
 
-    # Initialize extensions
-    from app.extensions import db, login_manager
+    # Initialize extensions (with WAL mode for SQLite)
+    db.init_app(flask_app)
+    login_manager.init_app(flask_app)
 
-    db.init_app(app)
-    login_manager.init_app(app)
+    # Enable WAL mode + foreign keys for SQLite
+    with flask_app.app_context():
+        if "sqlite" in flask_app.config.get("SQLALCHEMY_DATABASE_URI", ""):
+            from sqlalchemy import text
+            try:
+                db.session.execute(text("PRAGMA journal_mode=WAL"))
+                db.session.execute(text("PRAGMA foreign_keys=ON"))
+                db.session.commit()
+            except Exception:
+                pass  # non-SQLite or first-run
+
+    # Import models so they are registered with SQLAlchemy
+    with flask_app.app_context():
+        import app.models  # noqa: F401
 
     # Register blueprints
-    _register_blueprints(app)
+    _register_blueprints(flask_app)
 
     # Register error handlers
-    _register_error_handlers(app)
+    _register_error_handlers(flask_app)
 
     # Context processors
-    @app.context_processor
+    @flask_app.context_processor
     def inject_globals():
-        return {"app_version": app.config.get("VERSION", "v2.0.0")}
+        from datetime import datetime
+        return {
+            "app_version": flask_app.config.get("VERSION", "v2.0.0"),
+            "current_year": datetime.now().year,
+        }
 
-    return app
+    return flask_app
 
 
-def _register_blueprints(app: Flask) -> None:
-    """Register all application blueprints."""
+def _register_blueprints(flask_app: Flask) -> None:
+    """Register all application blueprints.
+
+    URL prefix strategy:
+    - Blueprints that define their own ``url_prefix`` in the constructor
+      (cashbook=/cashbook, pre_event=/pre, live_event=/live, manage=/manage,
+       photos=/photos) are registered WITHOUT an extra prefix.
+    - Blueprints whose routes embed the path directly
+      (dashboard=/, members=/members, items=/items, editions=/editions,
+       bids=/bids, pl=/pl) are registered at ``/``.
+    - The api blueprint is registered at ``/api``.
+    """
     from app.blueprints.dashboard import bp as dashboard_bp
     from app.blueprints.members import bp as members_bp
     from app.blueprints.items import bp as items_bp
@@ -66,28 +94,32 @@ def _register_blueprints(app: Flask) -> None:
     from app.blueprints.cashbook import bp as cashbook_bp
     from app.blueprints.photos import bp as photos_bp
 
-    app.register_blueprint(dashboard_bp)
-    app.register_blueprint(members_bp)
-    app.register_blueprint(items_bp)
-    app.register_blueprint(editions_bp)
-    app.register_blueprint(bids_bp)
-    app.register_blueprint(pl_bp)
-    app.register_blueprint(pre_event_bp)
-    app.register_blueprint(live_event_bp)
-    app.register_blueprint(manage_bp)
-    app.register_blueprint(api_bp, url_prefix="/api")
-    app.register_blueprint(cashbook_bp)
-    app.register_blueprint(photos_bp)
+    flask_app.register_blueprint(dashboard_bp)     # url_prefix='/' (implied)
+    flask_app.register_blueprint(members_bp)       # routes at /members
+    flask_app.register_blueprint(items_bp)         # routes at /items
+    flask_app.register_blueprint(editions_bp)      # routes at /editions
+    flask_app.register_blueprint(bids_bp)          # routes at /bids
+    flask_app.register_blueprint(pl_bp)            # routes at /pl
+    flask_app.register_blueprint(pre_event_bp)     # url_prefix='/pre' (from bp)
+    flask_app.register_blueprint(live_event_bp)    # url_prefix='/live' (from bp)
+    flask_app.register_blueprint(manage_bp)        # url_prefix='/manage' (from bp)
+    flask_app.register_blueprint(api_bp, url_prefix="/api")
+    flask_app.register_blueprint(cashbook_bp)      # url_prefix='/cashbook' (from bp)
+    flask_app.register_blueprint(photos_bp)        # url_prefix='/photos' (from bp)
 
 
-def _register_error_handlers(app: Flask) -> None:
+def _register_error_handlers(flask_app: Flask) -> None:
     """Register application-wide error handlers."""
     from flask import render_template
 
-    @app.errorhandler(404)
+    @flask_app.errorhandler(404)
     def not_found(e):
         return render_template("errors/404.html"), 404
 
-    @app.errorhandler(500)
+    @flask_app.errorhandler(500)
     def server_error(e):
         return render_template("errors/500.html"), 500
+
+    @flask_app.errorhandler(403)
+    def forbidden(e):
+        return render_template("errors/403.html"), 403

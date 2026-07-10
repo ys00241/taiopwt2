@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}{{ member.name }} — 會員詳情 — 寶榮堂花炮會{% endblock %}
+{% block page_title %}{{ member.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+
+  <!-- ═══ Back button ═══ -->
+  <a href="{{ url_for('members.list_members') }}" class="inline-flex items-center gap-xs mb-lg"
+     style="color: var(--primary); text-decoration: none; font-family: 'Inter', sans-serif; font-size: 0.875rem; font-weight: 500;">
+    <span class="material-symbols-outlined" style="font-size: 1.125rem;">arrow_back</span>
+    返回會員列表
+  </a>
+
+  <!-- ═══ Member Info Card ═══ -->
+  <div class="imperial-card mb-lg">
+    <div class="flex flex-col sm:flex-row sm:items-start gap-lg">
+      <!-- Avatar -->
+      <div class="avatar shrink-0" style="width: 64px; height: 64px; border-radius: 14px; font-size: 1.5rem;">
+        {{ member.name[:1] }}
+      </div>
+
+      <!-- Details -->
+      <div class="flex-1 min-w-0">
+        <div class="flex flex-wrap items-center gap-x-lg gap-y-sm mb-sm">
+          <h2 class="font-headline-md" style="color: var(--on-surface); margin: 0;">{{ member.name }}</h2>
+          <span class="font-body-sm" style="color: var(--on-surface-variant);">#{{ member.member_id }}</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
+          {% if member.phone %}
+          <div>
+            <span class="form-label" style="margin-bottom: 0.125rem;">電話</span>
+            <div class="font-body-md" style="color: var(--on-surface);">
+              <a href="tel:{{ member.phone }}" style="color: var(--primary); text-decoration: none;">{{ member.phone }}</a>
+            </div>
+          </div>
+          {% endif %}
+          {% if member.phone_2 %}
+          <div>
+            <span class="form-label" style="margin-bottom: 0.125rem;">後備電話</span>
+            <div class="font-body-md" style="color: var(--on-surface);">{{ member.phone_2 }}</div>
+          </div>
+          {% endif %}
+          {% if member.home_address %}
+          <div>
+            <span class="form-label" style="margin-bottom: 0.125rem;">地址</span>
+            <div class="font-body-md" style="color: var(--on-surface);">{{ member.home_address }}</div>
+          </div>
+          {% endif %}
+          {% if member.first_year %}
+          <div>
+            <span class="form-label" style="margin-bottom: 0.125rem;">加入年份</span>
+            <div class="font-body-md" style="color: var(--on-surface);">{{ member.first_year }} 年</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Total Summary ═══ -->
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-md mb-lg">
+    <div class="imperial-card" style="text-align: center;">
+      <span class="font-label-md" style="color: var(--on-surface-variant);">應繳總額</span>
+      <div class="font-headline-lg" style="color: var(--on-surface); margin-top: 0.25rem;">
+        ${{ total[0]|int if total[0] else 0 }}
+      </div>
+    </div>
+    <div class="imperial-card" style="text-align: center;">
+      <span class="font-label-md" style="color: var(--on-surface-variant);">已繳總額</span>
+      <div class="font-headline-lg" style="color: #166534; margin-top: 0.25rem;">
+        ${{ total[1]|int if total[1] else 0 }}
+      </div>
+    </div>
+    <div class="imperial-card" style="text-align: center;">
+      <span class="font-label-md" style="color: var(--on-surface-variant);">未繳總額</span>
+      {% set balance = (total[0]|int if total[0] else 0) - (total[1]|int if total[1] else 0) %}
+      <div class="font-headline-lg" style="color: var(--tertiary); margin-top: 0.25rem;">
+        ${{ balance if balance > 0 else 0 }}
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Bid History ═══ -->
+  <div class="imperial-card p-0" style="overflow-x: auto;">
+    <div class="flex items-center justify-between p-lg pb-md" style="border-bottom: 1px solid var(--outline-variant);">
+      <h3 class="font-headline-md" style="color: var(--on-surface); margin: 0;">競投記錄</h3>
+      <span class="font-body-sm" style="color: var(--on-surface-variant);">{{ bids|length }} 筆</span>
+    </div>
+
+    {% if bids %}
+    <table class="imperial-table">
+      <thead>
+        <tr>
+          <th>年份</th>
+          <th>聖物名稱</th>
+          <th style="text-align: right;">投標金額</th>
+          <th style="text-align: right;">已付金額</th>
+          <th style="text-align: right;">欠款</th>
+          <th>狀態</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set current_year = namespace(last=none) %}
+        {% for b in bids %}
+        <tr>
+          <td>
+            {% if current_year.last != b.year %}
+            {% set current_year.last = b.year %}
+            <span class="chip chip-gold">{{ b.year }} 年</span>
+            {% else %}
+            <span style="color: var(--on-surface-variant); font-size: 0.8125rem;">〃</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="font-label-lg" style="color: var(--on-surface);">
+              {% if b.name_1_auspicious %}{{ b.name_1_auspicious }}{% endif %}
+              {% if b.name_1_auspicious and b.name_2_description %} · {% endif %}
+              {% if b.name_2_description %}{{ b.name_2_description }}{% endif %}
+              {% if not b.name_1_auspicious and not b.name_2_description %}—{% endif %}
+            </div>
+            {% if b.bid_no %}
+            <div class="font-body-sm" style="color: var(--on-surface-variant);">投標 #{{ b.bid_no }}</div>
+            {% endif %}
+          </td>
+          <td style="text-align: right; font-weight: 500;">
+            {% if b.bid_amount > 0 %}
+            ${{ b.bid_amount|int }}
+            {% else %}
+            <span style="color: var(--on-surface-variant);">—</span>
+            {% endif %}
+          </td>
+          <td style="text-align: right;">
+            {% if b.paid_amount > 0 %}
+            <span style="color: #166534;">${{ b.paid_amount|int }}</span>
+            {% else %}
+            <span style="color: var(--on-surface-variant);">—</span>
+            {% endif %}
+          </td>
+          <td style="text-align: right;">
+            {% set b_unpaid = b.bid_amount - b.paid_amount %}
+            {% if b_unpaid > 0 %}
+            <span style="color: var(--tertiary); font-weight: 600;">${{ b_unpaid|int }}</span>
+            {% else %}
+            <span style="color: var(--on-surface-variant);">$0</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if b.bid_amount == 0 %}
+            <span class="chip" style="background: var(--surface-container); color: var(--on-surface-variant);">—</span>
+            {% elif b_unpaid <= 0 %}
+            <span class="chip chip-green">已清</span>
+            {% elif b.paid_amount > 0 and b_unpaid > 0 %}
+            <span class="chip chip-gold">部分</span>
+            {% else %}
+            <span class="chip chip-red">未繳</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="flex flex-col items-center py-xl" style="color: var(--on-surface-variant);">
+      <span class="material-symbols-outlined" style="font-size: 2.5rem; margin-bottom: 0.5rem;">receipt_long</span>
+      <p class="font-body-md">暫無競投記錄</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ═══ Payment Method Legend (if any bid has extra info) ═══ -->
+  {% set has_payment_info = bids|selectattr('payment_method')|list|length > 0 %}
+  {% if has_payment_info %}
+  <details class="imperial-card mt-lg" style="cursor: pointer;">
+    <summary class="font-label-lg" style="color: var(--on-surface-variant);">付款詳情</summary>
+    <table class="imperial-table mt-md">
+      <thead>
+        <tr>
+          <th>年份</th>
+          <th>聖物</th>
+          <th>付款方式</th>
+          <th>經手人</th>
+          <th>收據編號</th>
+          <th>備註</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in bids if b.payment_method %}
+        <tr>
+          <td>{{ b.year }}</td>
+          <td>{{ b.item_name or '—' }}</td>
+          <td>{{ b.payment_method }}</td>
+          <td>{{ b.handler or '—' }}</td>
+          <td>{{ b.receipt_no or '—' }}</td>
+          <td class="truncate" style="max-width: 150px;">{{ b.remarks or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </details>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    console.log('Member detail loaded — {{ member.name }}');
+  });
+</script>
+{% endblock %}

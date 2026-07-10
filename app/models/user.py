@@ -1,0 +1,32 @@
+"""User model — 系統用戶 authentication via Flask-Login."""
+from app.extensions import db
+from flask_login import UserMixin
+from werkzeug.security import generate_password_hash, check_password_hash
+
+
+class User(UserMixin, db.Model):
+    """System user for admin authentication.
+
+    Separate from Member (which represents association members).
+    Uses Werkzeug's bcrypt-compatible password hashing.
+    """
+
+    __tablename__ = "users"
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False, index=True)
+    password_hash = db.Column(db.String(256), nullable=False)
+    display_name = db.Column(db.String(100), default="")
+    role = db.Column(db.String(20), default="user")  # 'admin' or 'user'
+    is_active = db.Column(db.Boolean, default=True)
+
+    def set_password(self, password: str) -> None:
+        """Hash and store the given password."""
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password: str) -> bool:
+        """Verify the given password against the stored hash."""
+        return check_password_hash(self.password_hash, password)
+
+    def __repr__(self) -> str:
+        return f"<User {self.username!r} role={self.role}>"
