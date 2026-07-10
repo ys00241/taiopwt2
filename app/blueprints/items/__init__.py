@@ -9,7 +9,7 @@ from app.extensions import db
 from app.models.bid import Bid
 from app.models.item import Item
 
-bp = Blueprint("items", __name__, template_folder="../../templates/items")
+bp = Blueprint("items", __name__)
 
 
 @bp.route("/items")
@@ -56,7 +56,7 @@ def list_items():
             d["supplier"] = ""
             result.append(d)
 
-    return render_template("items.html", items=result)
+    return render_template("items/items.html", items=result)
 
 
 @bp.route("/items/<int:item_id>/detail")

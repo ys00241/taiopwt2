@@ -7,7 +7,7 @@ from app.extensions import db
 from app.models.bid import Bid
 from app.models.edition import Edition
 
-bp = Blueprint("editions", __name__, template_folder="../../templates/editions")
+bp = Blueprint("editions", __name__)
 
 
 @bp.route("/editions")
@@ -59,7 +59,7 @@ def list_editions():
             }
         )
 
-    return render_template("editions.html", editions=edition_list)
+    return render_template("editions/editions.html", editions=edition_list)
 
 
 @bp.route("/editions/<int:edition_id>/edit", methods=["POST"])

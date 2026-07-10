@@ -2,7 +2,7 @@
 from flask import Blueprint
 from flask_login import login_required, login_user, logout_user, current_user
 
-bp = Blueprint("manage", __name__, template_folder="../../templates/manage",
+bp = Blueprint("manage", __name__,
                url_prefix="/manage")
 
 
@@ -138,26 +138,26 @@ def settings():
 
         if not current_password or not new_password:
             flash("請填寫所有密碼欄位", "error")
-            return render_template("settings.html")
+            return render_template("manage/settings.html")
 
         if not current_user.check_password(current_password):
             flash("當前密碼不正確", "error")
-            return render_template("settings.html")
+            return render_template("manage/settings.html")
 
         if new_password != confirm_password:
             flash("新密碼與確認密碼不一致", "error")
-            return render_template("settings.html")
+            return render_template("manage/settings.html")
 
         if len(new_password) < 4:
             flash("新密碼長度至少需要4個字符", "error")
-            return render_template("settings.html")
+            return render_template("manage/settings.html")
 
         current_user.set_password(new_password)
         db.session.commit()
         flash("密碼已成功更新", "info")
         return redirect(url_for("manage.settings"))
 
-    return render_template("settings.html")
+    return render_template("manage/settings.html")
 
 
 @bp.route("/db-status")
@@ -178,7 +178,7 @@ def index():
     """Management hub page — links to import/export/backup/restore."""
     from flask import render_template
     return render_template(
-        "manage.html",
+        "manage/index.html",
         export_tables=sorted(EXPORT_TABLES),
         import_tables=sorted(IMPORT_TABLES),
     )

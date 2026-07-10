@@ -28,7 +28,7 @@ from app.services.cashbook_service import (
     update_entry,
 )
 
-bp = Blueprint("cashbook", __name__, template_folder="../../templates/cashbook",
+bp = Blueprint("cashbook", __name__,
                url_prefix="/cashbook")
 
 
@@ -49,7 +49,7 @@ def cashbook_index():
     entries = get_daily_entries(year, month)
     summary = get_cashbook_summary(year)
 
-    return render_template("list.html",
+    return render_template("cashbook/list.html",
                            year=year,
                            month=month,
                            entries=entries,

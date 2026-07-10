@@ -13,7 +13,7 @@ from app.models.member import Member
 from app.models.sponsor import Sponsor
 from app.models.this_year_item import ThisYearItem
 
-bp = Blueprint("dashboard", __name__, template_folder="../../templates/dashboard")
+bp = Blueprint("dashboard", __name__)
 
 
 @bp.route("/")
@@ -75,4 +75,4 @@ def dashboard():
         "unpaid_total": unpaid_total,
     }
 
-    return render_template("dashboard.html", stats=stats, year=year)
+    return render_template("dashboard/dashboard.html", stats=stats, year=year)

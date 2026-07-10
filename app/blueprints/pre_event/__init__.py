@@ -16,7 +16,7 @@ from app.models.sponsor import Sponsor
 from app.models.member import Member
 from app.models.bid import Bid
 
-bp = Blueprint("pre_event", __name__, template_folder="../../templates/pre_event",
+bp = Blueprint("pre_event", __name__,
                url_prefix="/pre")
 
 # ──────────────────────────────────────────────────────────────────────
@@ -51,7 +51,7 @@ def pre_items():
         .all()
     )
     years = [r[0] for r in years]
-    return render_template("pre_items.html", items=items, year=year, years=years)
+    return render_template("pre_event/items.html", items=items, year=year, years=years)
 
 
 @bp.route("/items/add", methods=["POST"])
@@ -372,7 +372,7 @@ def pre_expenses():
         .filter(Expense.year == int(year), Expense.source == "pre")
         .scalar()
     )
-    return render_template("pre_expenses.html", items=items, year=year, total=total)
+    return render_template("pre_event/expenses.html", items=items, year=year, total=total)
 
 
 @bp.route("/expenses/add", methods=["POST"])
@@ -486,7 +486,7 @@ def pre_sponsors():
         .filter(Sponsor.year == int(year))
         .scalar()
     )
-    return render_template("pre_sponsors.html", items=items, year=year, total=total)
+    return render_template("pre_event/sponsors.html", items=items, year=year, total=total)
 
 
 @bp.route("/sponsors/add", methods=["POST"])
@@ -661,7 +661,7 @@ def pre_previous():
     years = [r[0] for r in db.session.query(Bid.year).distinct().order_by(Bid.year.desc()).all()]
 
     return render_template(
-        "pre_previous.html", members=result,
+        "pre_event/previous.html", members=result,
         years=years, sel_year=year, search=search,
     )
 
@@ -686,7 +686,7 @@ def pre_previous_member(member_id):
     paid = sum(b.paid_amount or 0 for b in bids)
 
     return render_template(
-        "pre_previous_member.html",
+        "pre_event/previous_member.html",
         member=member, items=bids,
         year=year, total=total, paid=paid,
         unpaid=total - paid,

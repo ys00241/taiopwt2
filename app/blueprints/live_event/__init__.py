@@ -15,7 +15,7 @@ from app.models.live_income import LiveIncome
 from app.models.expense import Expense
 from app.models.edition import Edition
 
-bp = Blueprint("live_event", __name__, template_folder="../../templates/live_event",
+bp = Blueprint("live_event", __name__,
                url_prefix="/live")
 
 
@@ -52,7 +52,7 @@ def live_bidding():
     ]
 
     return render_template(
-        "live_bidding.html",
+        "live_event/bidding.html",
         available=available, won=won,
         items_all=items,
         members=members,
@@ -290,7 +290,7 @@ def live_payments():
     ]
 
     return render_template(
-        "live_payments.html",
+        "live_event/payments.html",
         members=result, recent=recent,
         year=year, source_year=source_year, search=search,
         years=years,
@@ -378,7 +378,7 @@ def live_income():
         .filter(LiveIncome.year == int(year))
         .scalar()
     )
-    return render_template("live_income.html", items=items, year=year, total=total)
+    return render_template("live_event/live_income.html", items=items, year=year, total=total)
 
 
 @bp.route("/income/<int:iid>/edit", methods=["POST"])
@@ -436,7 +436,7 @@ def live_expenses_live():
         .filter(Expense.year == int(year), Expense.source == "live")
         .scalar()
     )
-    return render_template("live_expenses.html", items=items, year=year, total=total)
+    return render_template("live_event/live_expenses.html", items=items, year=year, total=total)
 
 
 @bp.route("/expenses_live/add", methods=["POST"])
@@ -576,7 +576,7 @@ def live_dashboard():
     )
 
     return render_template(
-        "live_dashboard.html",
+        "live_event/dashboard.html",
         year=year_str, prev_year=str(prev_year),
         prev_unpaid={"cnt": prev_unpaid.cnt or 0, "total": prev_unpaid.total or 0},
         prev_paid={"cnt": prev_paid.cnt or 0, "total": prev_paid.total or 0},

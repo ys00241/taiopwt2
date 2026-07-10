@@ -2,7 +2,7 @@
 from flask import Blueprint
 from flask_login import login_required
 
-bp = Blueprint("bids", __name__, template_folder="../../templates/bids")
+bp = Blueprint("bids", __name__)
 
 
 @bp.route("/bids")
@@ -52,7 +52,7 @@ def list_bids():
     ]
 
     return render_template(
-        "bids.html",
+        "bids/list.html",
         bids=bids,
         year=year,
         years=years,

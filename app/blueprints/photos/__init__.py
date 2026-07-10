@@ -30,7 +30,7 @@ from app.services.photo_service import (
 )
 from flask import current_app
 
-bp = Blueprint("photos", __name__, template_folder="../../templates/photos",
+bp = Blueprint("photos", __name__,
                url_prefix="/photos")
 
 
@@ -52,7 +52,7 @@ def photo_gallery():
     """
     year = request.args.get("year", type=int) or _get_default_year()
     photos = get_photos(year)
-    return render_template("gallery.html",
+    return render_template("photos/gallery.html",
                            year=year,
                            photos=photos)
 

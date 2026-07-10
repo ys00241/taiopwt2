@@ -2,7 +2,7 @@
 from flask import Blueprint
 from flask_login import login_required
 
-bp = Blueprint("pl", __name__, template_folder="../../templates/pl")
+bp = Blueprint("pl", __name__)
 
 
 @bp.route("/pl")
@@ -88,7 +88,7 @@ def view_pl():
     ]
 
     return render_template(
-        "pl.html",
+        "pl/index.html",
         year=year,
         years=years,
         income_sections=income_sections,
