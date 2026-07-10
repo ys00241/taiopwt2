@@ -611,6 +611,7 @@ def pre_previous():
     for r in rows:
         d = r._asdict()
         d["unpaid"] = (d["total_due"] or 0) - (d["total_paid"] or 0)
+        d["member_name"] = d.get("name", "")
         result.append(d)
 
     # Search filter
@@ -660,9 +661,22 @@ def pre_previous():
 
     years = [r[0] for r in db.session.query(Bid.year).distinct().order_by(Bid.year.desc()).all()]
 
+    # Compute stats for template
+    total_due = sum((r.total_due or 0) for r in result)
+    total_paid = sum((r.total_paid or 0) for r in result)
+    total_unpaid = sum((r.unpaid or 0) for r in result)
+    unpaid_count = sum(1 for r in result if (r.unpaid or 0) > 0)
+
     return render_template(
-        "pre_event/previous.html", members=result,
-        years=years, sel_year=year, search=search,
+        "pre_event/previous.html",
+        debts=result,
+        years=years, year=year, search=search,
+        stats={
+            "total_due": total_due,
+            "total_paid": total_paid,
+            "unpaid": total_unpaid,
+            "unpaid_count": unpaid_count,
+        },
     )
 
 
