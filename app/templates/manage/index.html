@@ -137,6 +137,22 @@
       <div id="restoreResult" class="hidden mt-md"></div>
     </div>
 
+    <!-- ═══ USER MANAGEMENT ═══ -->
+    <div class="imperial-card">
+      <div class="flex items-center gap-sm mb-md">
+        <span class="material-symbols-outlined" style="color: var(--primary);">manage_accounts</span>
+        <h2 class="font-headline-md" style="color: var(--on-surface);">用戶管理 Users</h2>
+      </div>
+      <p class="font-body-sm mb-md" style="color: var(--on-surface-variant);">
+        管理系統用戶 — 新增、編輯用戶資料、重設密碼。
+      </p>
+
+      <a href="{{ url_for('manage.manage_users') }}" class="btn-primary w-full justify-center">
+        <span class="material-symbols-outlined">group</span>
+        管理用戶
+      </a>
+    </div>
+
   </div>
 
   <!-- ═══ Allowed Tables Reference ═══ -->
