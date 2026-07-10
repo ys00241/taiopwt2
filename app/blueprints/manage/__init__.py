@@ -1,5 +1,5 @@
 """Manage blueprint — 系統管理 (login, settings, database, import/export)."""
-from flask import Blueprint
+from flask import Blueprint, render_template
 from flask_login import login_required, login_user, logout_user, current_user
 
 bp = Blueprint("manage", __name__,

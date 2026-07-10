@@ -5,7 +5,7 @@ from datetime import datetime
 from zipfile import ZipFile
 
 from flask import (
-    Blueprint, render_template, request, jsonify, Response, send_file,
+    Blueprint, render_template, request, jsonify, redirect, url_for, Response, send_file,
 )
 from flask_login import login_required
 
@@ -120,7 +120,10 @@ def pre_items_add():
     db.session.add(item)
     db.session.commit()
 
-    return jsonify({"ok": True, "sticker_no": sticker_no, "item_id": item.id})
+    # If AJAX request, return JSON. Otherwise redirect back to items page.
+    if request.headers.get("Accept") == "application/json" or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"ok": True, "sticker_no": sticker_no, "item_id": item.id})
+    return redirect(url_for("pre_event.pre_items"))
 
 
 @bp.route("/items/<int:item_id>/edit", methods=["POST"])
@@ -147,7 +150,11 @@ def pre_items_edit(item_id):
         item.bid_amount = float(bid_amt)
 
     db.session.commit()
-    return jsonify({"ok": True})
+
+    # If AJAX request, return JSON. Otherwise redirect back to items page.
+    if request.headers.get("Accept") == "application/json" or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"ok": True})
+    return redirect(url_for("pre_event.pre_items"))
 
 
 @bp.route("/items/<int:item_id>/delete", methods=["POST"])
