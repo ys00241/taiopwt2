@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  taio_pwt:
+    build: .
+    container_name: taio_pwt
+    ports:
+      - "2004:5000"
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+      - ./csv_exports:/app/csv_exports
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+    restart: unless-stopped
