@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   taio_pwt:
-    build: .
+    image: ghcr.io/ys00241/taiopwt2:latest
     container_name: taio_pwt
     ports:
       - "2004:5000"
