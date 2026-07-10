@@ -1,5 +1,6 @@
 """Live-event blueprint — 現場活動 (競投台, 收款台, 現場收支, 實時儀錶板), mobile-optimized."""
 from io import BytesIO
+import json
 from datetime import datetime
 
 from flask import (
@@ -13,6 +14,7 @@ from app.models.bid import Bid
 from app.models.member import Member
 from app.models.live_income import LiveIncome
 from app.models.expense import Expense
+from app.models.sponsor import Sponsor
 from app.models.edition import Edition
 
 bp = Blueprint("live_event", __name__,
@@ -58,11 +60,17 @@ def live_bidding():
         "available_count": len(available),
     }
 
+    # Build members JSON for JS autocomplete
+    members_json = json.dumps([{"id": m.member_id, "name": m.name, "phone": m.phone or ""} for m in members], ensure_ascii=False)
+
     return render_template(
         "live_event/bidding.html",
         available=available, won=won,
+        available_items=available,
+        won_items=won,
         items_all=items,
         members=members,
+        members_json=members_json,
         years=years,
         year=year,
         stats=stats,
@@ -299,7 +307,7 @@ def live_payments():
 
     return render_template(
         "live_event/payments.html",
-        members=result, recent=recent,
+        members=result, recent_payments=recent,
         year=year, source_year=source_year, search=search,
         years=years,
     )
@@ -578,8 +586,8 @@ def live_dashboard():
 
     # Sponsors total
     sponsors_total = (
-        db.session.query(db.func.coalesce(db.func.sum(Expense.amount), 0))
-        .filter(Expense.year == year)
+        db.session.query(db.func.coalesce(db.func.sum(Sponsor.amount), 0))
+        .filter(Sponsor.year == year)
         .scalar()
     )
 

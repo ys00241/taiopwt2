@@ -742,6 +742,12 @@ def pre_previous_member(member_id):
     total = sum(b.bid_amount or 0 for b in bids)
     paid = sum(b.paid_amount or 0 for b in bids)
 
+    # Add computed fields to member for template
+    member.total_due = total
+    member.total_paid = paid
+    member.unpaid_total = total - paid
+    member.item_count = len(bids)
+
     return render_template(
         "pre_event/previous_member.html",
         member=member, items=bids,
