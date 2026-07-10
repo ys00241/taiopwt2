@@ -121,10 +121,10 @@
           {% for debt in debts %}
           <tr class="debt-row-tr" data-name="{{ debt.member_name|lower }}">
             <td>
-              <input type="checkbox" class="debt-checkbox debt-select" value="{{ debt.member_id }}" onchange="updateSelected()">
+              <input type="checkbox" class="debt-checkbox debt-select" value="{{ debt.member_id|default(0) }}" onchange="updateSelected()">
             </td>
             <td>
-              <a href="{{ url_for('pre_event.pre_previous_member', member_id=debt.member_id) }}" class="font-label-lg" style="color: var(--primary); text-decoration: none;">
+              <a href="{{ url_for('pre_event.pre_previous_member', member_id=debt.member_id) if debt.member_id else '#' }}" class="font-label-lg" style="color: var(--primary); text-decoration: none;">
                 {{ debt.member_name }}
               </a>
             </td>
@@ -136,7 +136,7 @@
             </td>
             <td>{{ debt.item_count }}</td>
             <td>
-              <a href="{{ url_for('pre_event.pre_previous_member', member_id=debt.member_id) }}" class="btn-secondary" style="padding: 0.25rem 0.75rem; font-size: 0.75rem;">
+              <a href="{{ url_for('pre_event.pre_previous_member', member_id=debt.member_id) if debt.member_id else '#' }}" class="btn-secondary" style="padding: 0.25rem 0.75rem; font-size: 0.75rem;">
                 查看
               </a>
             </td>
@@ -149,8 +149,8 @@
     <!-- Mobile Card List -->
     <div class="md:hidden">
       {% for debt in debts %}
-      <a href="{{ url_for('pre_event.pre_previous_member', member_id=debt.member_id) }}" class="debt-row text-decoration-none" data-name="{{ debt.member_name|lower }}">
-        <input type="checkbox" class="debt-checkbox debt-select" value="{{ debt.member_id }}" onclick="event.stopPropagation(); updateSelected();">
+      <a href="{{ url_for('pre_event.pre_previous_member', member_id=debt.member_id) if debt.member_id else '#' }}" class="debt-row text-decoration-none" data-name="{{ debt.member_name|lower }}">
+        <input type="checkbox" class="debt-checkbox debt-select" value="{{ debt.member_id|default(0) }}" onclick="event.stopPropagation(); updateSelected();">
         <div class="flex-1 min-w-0">
           <div class="font-label-lg">{{ debt.member_name }}</div>
           <div class="flex items-center gap-sm mt-xs">
