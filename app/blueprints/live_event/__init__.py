@@ -605,6 +605,11 @@ def live_dashboard():
         "highest_bidder": top_bidder_name,
     }
 
+    # Build recent activities
+    recent_activities = []
+    if top_item:
+        recent_activities.append({"label": f"最高競投: {top_item.item_name}", "value": f"${top_item.bid_amount:,.0f}", "type": "bid"})
+
     return render_template(
         "live_event/dashboard.html",
         year=year_str, prev_year=str(prev_year),
@@ -612,6 +617,8 @@ def live_dashboard():
         prev_paid={"cnt": prev_paid.cnt or 0, "total": prev_paid.total or 0},
         live_collected=live_collected or 0,
         stats=stats_dict,
+        recent_activities=recent_activities,
+        refresh_interval=30,
         top_item=top_item,
         total_expenses=(total_pre_expenses or 0) + (total_live_expenses or 0),
         total_pre_expenses=total_pre_expenses or 0,
