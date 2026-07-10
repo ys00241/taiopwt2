@@ -718,6 +718,7 @@ def api_member_debt(member_id):
 
         bids.append({
             "bid_id": b.id,
+            "item_id": b.item_id,
             "year": b.year,
             "item_name": item_name,
             "bid_amount": int(b.bid_amount or 0),

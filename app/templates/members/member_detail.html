@@ -144,7 +144,7 @@
           </td>
           <td>
             <div class="font-label-lg" style="color: var(--primary); cursor: pointer;"
-                 onclick="openItemDetailFromDb({{ b.item_id }})">
+                 {% if b.item_id %}onclick="openItemDetailFromDb({{ b.item_id }})"{% endif %}>
               {% if b.name_1_auspicious %}{{ b.name_1_auspicious }}{% endif %}
               {% if b.name_1_auspicious and b.name_2_description %} · {% endif %}
               {% if b.name_2_description %}{{ b.name_2_description }}{% endif %}
@@ -232,6 +232,9 @@
   {% endif %}
 
 </div>
+
+{% include "components/item_detail_modal.html" %}
+
 <!-- ═══ Edit Member Modal ═══ -->
 <div id="editMemberModal" class="modal-overlay" style="display: none;">
   <div class="modal-container" style="max-width: 500px;">
@@ -414,7 +417,10 @@ function showDebtModal(memberId, memberName) {
         data.bids.forEach(function(b) {
           html += '<tr>' +
             '<td><span class="chip chip-gold">' + b.year + ' 年</span></td>' +
-            '<td><div class="font-label-lg" style="color: var(--on-surface);">' + (b.item_name || '—') + '</div></td>' +
+            '<td>' +
+            '<div class="font-label-lg" style="color: var(--primary); cursor: pointer;"' +
+            (b.item_id ? ' onclick="event.stopPropagation(); openItemDetailFromDb(' + b.item_id + ')"' : '') +
+            '>' + (b.item_name || '—') + '</div></td>' +
             '<td style="text-align:right; font-weight:500;">$' + b.bid_amount + '</td>' +
             '<td style="text-align:right;">' +
             (b.paid_amount > 0
