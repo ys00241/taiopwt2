@@ -2,7 +2,7 @@
 from flask import Blueprint
 from flask_login import login_required
 
-bp = Blueprint("api", __name__, template_folder="../templates/api")
+bp = Blueprint("api", __name__, template_folder="../../templates/api")
 
 
 @bp.route("/live/stats")

@@ -30,7 +30,7 @@ from app.services.photo_service import (
 )
 from flask import current_app
 
-bp = Blueprint("photos", __name__, template_folder="../templates/photos",
+bp = Blueprint("photos", __name__, template_folder="../../templates/photos",
                url_prefix="/photos")
 
 

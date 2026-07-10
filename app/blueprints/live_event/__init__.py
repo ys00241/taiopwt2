@@ -15,7 +15,7 @@ from app.models.live_income import LiveIncome
 from app.models.expense import Expense
 from app.models.edition import Edition
 
-bp = Blueprint("live_event", __name__, template_folder="../templates/live_event",
+bp = Blueprint("live_event", __name__, template_folder="../../templates/live_event",
                url_prefix="/live")
 
 

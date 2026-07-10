@@ -2,7 +2,7 @@
 from flask import Blueprint
 from flask_login import login_required, login_user, logout_user, current_user
 
-bp = Blueprint("manage", __name__, template_folder="../templates/manage",
+bp = Blueprint("manage", __name__, template_folder="../../templates/manage",
                url_prefix="/manage")
 
 

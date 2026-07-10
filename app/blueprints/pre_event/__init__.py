@@ -16,7 +16,7 @@ from app.models.sponsor import Sponsor
 from app.models.member import Member
 from app.models.bid import Bid
 
-bp = Blueprint("pre_event", __name__, template_folder="../templates/pre_event",
+bp = Blueprint("pre_event", __name__, template_folder="../../templates/pre_event",
                url_prefix="/pre")
 
 # ──────────────────────────────────────────────────────────────────────

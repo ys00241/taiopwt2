@@ -9,7 +9,7 @@ from app.extensions import db
 from app.models.bid import Bid
 from app.models.item import Item
 
-bp = Blueprint("items", __name__, template_folder="../templates/items")
+bp = Blueprint("items", __name__, template_folder="../../templates/items")
 
 
 @bp.route("/items")

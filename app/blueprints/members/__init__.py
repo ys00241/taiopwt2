@@ -12,7 +12,7 @@ from app.models.item import Item
 from app.models.live_income import LiveIncome
 from app.models.member import Member
 
-bp = Blueprint("members", __name__, template_folder="../templates/members")
+bp = Blueprint("members", __name__, template_folder="../../templates/members")
 
 
 @bp.route("/members")

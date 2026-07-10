@@ -2,7 +2,7 @@
 from flask import Blueprint
 from flask_login import login_required
 
-bp = Blueprint("pl", __name__, template_folder="../templates/pl")
+bp = Blueprint("pl", __name__, template_folder="../../templates/pl")
 
 
 @bp.route("/pl")

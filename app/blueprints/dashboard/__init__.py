@@ -13,7 +13,7 @@ from app.models.member import Member
 from app.models.sponsor import Sponsor
 from app.models.this_year_item import ThisYearItem
 
-bp = Blueprint("dashboard", __name__, template_folder="../templates/dashboard")
+bp = Blueprint("dashboard", __name__, template_folder="../../templates/dashboard")
 
 
 @bp.route("/")

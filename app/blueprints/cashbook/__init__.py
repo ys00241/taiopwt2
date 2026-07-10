@@ -28,7 +28,7 @@ from app.services.cashbook_service import (
     update_entry,
 )
 
-bp = Blueprint("cashbook", __name__, template_folder="../templates/cashbook",
+bp = Blueprint("cashbook", __name__, template_folder="../../templates/cashbook",
                url_prefix="/cashbook")
 
 

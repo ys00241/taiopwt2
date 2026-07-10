@@ -7,7 +7,7 @@ from app.extensions import db
 from app.models.bid import Bid
 from app.models.edition import Edition
 
-bp = Blueprint("editions", __name__, template_folder="../templates/editions")
+bp = Blueprint("editions", __name__, template_folder="../../templates/editions")
 
 
 @bp.route("/editions")
