@@ -319,6 +319,18 @@ def pre_items_sticker_pdf():
     from reportlab.lib.units import mm
     from reportlab.pdfgen import canvas
     from reportlab.lib.colors import HexColor
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+
+    # Register CJK font for Chinese character support, fall back to Helvetica if unavailable
+    _CJK_PATH = "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc"
+    try:
+        pdfmetrics.registerFont(TTFont("WenQuanYi", _CJK_PATH))
+        FONT_NAME = "WenQuanYi"
+        FONT_BOLD = "WenQuanYi"
+    except Exception:
+        FONT_NAME = "Helvetica"
+        FONT_BOLD = "Helvetica-Bold"
 
     year = int(request.args.get("year", datetime.now().strftime("%Y")))
     items = (
@@ -342,7 +354,7 @@ def pre_items_sticker_pdf():
 
     if not items:
         # Empty state — show message instead of blank page
-        c.setFont("Helvetica-Bold", 18)
+        c.setFont(FONT_BOLD, 18)
         c.setFillColor(HexColor("#8c847a"))
         c.drawCentredString(width / 2, height / 2, "暫無聖物資料")
         c.save()
@@ -372,13 +384,13 @@ def pre_items_sticker_pdf():
 
         # Sticker number (gold accent)
         c.setFillColor(gold)
-        c.setFont("Helvetica-Bold", 14)
+        c.setFont(FONT_BOLD, 14)
         sticker_no = item.sticker_no if item.sticker_no else "-"
         c.drawString(x + 3 * mm, y + label_h - 10 * mm, f"#{sticker_no}")
 
         # Item name
         c.setFillColor(HexColor("#2d2822"))
-        c.setFont("Helvetica", 10)
+        c.setFont(FONT_NAME, 10)
         name = item.item_name or "-"
         if len(name) > 18:
             name = name[:17] + ".."
@@ -386,13 +398,13 @@ def pre_items_sticker_pdf():
 
         # Category
         if item.category:
-            c.setFont("Helvetica", 8)
+            c.setFont(FONT_NAME, 8)
             c.setFillColor(HexColor("#8c847a"))
             c.drawString(x + 3 * mm, y + label_h - 25 * mm, item.category)
 
         # Bid info if won
         if item.bidder_name:
-            c.setFont("Helvetica-Bold", 8)
+            c.setFont(FONT_BOLD, 8)
             c.setFillColor(HexColor("#dc2626"))
             bid_amt = item.bid_amount or 0
             c.drawString(x + 3 * mm, y + 4 * mm, f"${bid_amt:,.0f}")
