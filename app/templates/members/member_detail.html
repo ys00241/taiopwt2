@@ -102,6 +102,15 @@
     </div>
   </div>
 
+  <!-- ═══ One-click payment button ═══ -->
+  <div class="flex justify-end mb-lg">
+    <a href="/live/payments?year={{ current_year }}&member_id={{ member.member_id }}"
+       class="btn-primary" style="text-decoration: none;">
+      <span class="material-symbols-outlined" style="font-size: 1.125rem;">payments</span>
+      一鍵繳款
+    </a>
+  </div>
+
   <!-- ═══ Bid History ═══ -->
   <div class="imperial-card p-0" style="overflow-x: auto;">
     <div class="flex items-center justify-between p-lg pb-md" style="border-bottom: 1px solid var(--outline-variant);">
@@ -134,7 +143,8 @@
             {% endif %}
           </td>
           <td>
-            <div class="font-label-lg" style="color: var(--on-surface);">
+            <div class="font-label-lg" style="color: var(--primary); cursor: pointer;"
+                 onclick="openItemDetailFromDb({{ b.item_id }})">
               {% if b.name_1_auspicious %}{{ b.name_1_auspicious }}{% endif %}
               {% if b.name_1_auspicious and b.name_2_description %} · {% endif %}
               {% if b.name_2_description %}{{ b.name_2_description }}{% endif %}
@@ -161,7 +171,7 @@
           <td style="text-align: right;">
             {% set b_unpaid = b.bid_amount - b.paid_amount %}
             {% if b_unpaid > 0 %}
-            <span style="color: var(--tertiary); font-weight: 600;">${{ b_unpaid|int }}</span>
+            <a href="/live/payments?year={{ b.year }}&member_id={{ member.member_id }}" style="color: var(--tertiary); font-weight: 600; text-decoration: none;">${{ b_unpaid|int }}</a>
             {% else %}
             <span style="color: var(--on-surface-variant);">$0</span>
             {% endif %}

@@ -124,6 +124,16 @@ def live_payments():
     search = request.args.get("q", "").strip()
     int_source_year = int(source_year) if source_year else None
 
+    # Auto-populate search if member_id is provided
+    member_id = request.args.get("member_id", "").strip()
+    if member_id and not search:
+        try:
+            member = db.session.get(Member, int(member_id))
+            if member:
+                search = member.name
+        except (ValueError, TypeError):
+            pass
+
     # Build member debt query
     if int_source_year:
         # Scope to a specific source year

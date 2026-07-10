@@ -533,5 +533,20 @@
       btn.innerHTML = `<span class="material-symbols-outlined">check_circle</span> 確認收款 $${parseInt(val) || 0}`;
     }
   }
+
+  // ════════════════════════════════════════
+  // Auto-search on page load (member_id
+  // from clickable debt links elsewhere)
+  // ════════════════════════════════════════
+  (function() {
+    const searchParam = '{{ search|default("") }}';
+    if (searchParam) {
+      const input = document.getElementById('paymentSearch');
+      if (input) {
+        input.value = searchParam;
+        searchMember(searchParam);
+      }
+    }
+  })();
 </script>
 {% endblock %}

@@ -197,6 +197,7 @@ def member_detail(member_id):
         bid_list.append(
             {
                 "id": b.id,
+                "item_id": b.item_id,
                 "year": b.year,
                 "bid_amount": b.bid_amount or 0,
                 "paid_amount": b.paid_amount or 0,

@@ -1,4 +1,4 @@
-<!-- ═══ Item Detail Modal (shared by items.html and bidding.html) ═══ -->
+<!-- ═══ Item Detail Modal (shared by items.html, bidding.html, previous.html, member_detail.html) ═══ -->
 <div class="modal-overlay" id="itemDetailModal">
   <div class="modal-content" style="max-width: 480px;">
     <div class="flex items-center justify-between mb-md">
@@ -90,6 +90,15 @@
           <p class="font-body-md text-on-surface-variant">此聖物尚未被競投。</p>
         </div>
 
+        <!-- ═══ Bid History (競投紀錄) ═══ -->
+        <div id="detailBidHistorySection" style="display: none;">
+          <hr style="border: none; border-top: 1px solid var(--outline-variant);">
+          <div class="font-label-md text-on-surface-variant mb-sm">競投紀錄</div>
+          <div id="detailBidHistoryContent" style="overflow-x: auto;">
+            <!-- Dynamically populated table -->
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -98,8 +107,8 @@
 
 <script>
 /**
- * Open the item detail modal and fetch data from the API.
- * @param {number} itemId - The item ID to load.
+ * Open the item detail modal and fetch data from the API (ThisYearItem).
+ * @param {number} itemId - The ThisYearItem ID to load.
  */
 function openItemDetail(itemId) {
   var modal = document.getElementById('itemDetailModal');
@@ -109,6 +118,10 @@ function openItemDetail(itemId) {
   // Reset to loading state
   if (loading) loading.style.display = 'flex';
   if (content) content.style.display = 'none';
+
+  // Hide bid history from previous open
+  var bidHistSection = document.getElementById('detailBidHistorySection');
+  if (bidHistSection) bidHistSection.style.display = 'none';
 
   modal.classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -155,6 +168,12 @@ function openItemDetail(itemId) {
         wonSection.style.display = 'none';
         notWonSection.style.display = 'block';
       }
+
+      // If API returned bid history, show it
+      if (data.bids && data.bids.length > 0 && bidHistSection) {
+        renderBidHistory(data.bids);
+        bidHistSection.style.display = 'block';
+      }
     })
     .catch(function (err) {
       console.error('Item detail fetch error:', err);
@@ -163,6 +182,108 @@ function openItemDetail(itemId) {
       document.getElementById('detailItemName').textContent = '載入失敗';
       document.getElementById('detailModalSubtitle').textContent = '無法獲取聖物詳情';
     });
+}
+
+/**
+ * Open item detail modal using Item model (by item_id integer).
+ * Fetches from /api/items/<int:item_id>/detail which includes bid records.
+ * @param {number} itemId - The Item.item_id to load.
+ */
+function openItemDetailFromDb(itemId) {
+  var modal = document.getElementById('itemDetailModal');
+  var loading = document.getElementById('detailLoading');
+  var content = document.getElementById('detailContent');
+
+  if (loading) loading.style.display = 'flex';
+  if (content) content.style.display = 'none';
+
+  var bidHistSection = document.getElementById('detailBidHistorySection');
+  if (bidHistSection) bidHistSection.style.display = 'none';
+
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  fetch('/api/items/' + itemId + '/detail')
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (loading) loading.style.display = 'none';
+      if (content) content.style.display = 'block';
+
+      var stickerStr = data.sticker_no ? String(data.sticker_no).padStart(2, '0') : '--';
+      document.getElementById('detailStickerBadge').textContent = stickerStr;
+      document.getElementById('detailItemName').textContent = data.item_name || '—';
+      document.getElementById('detailActualItem').textContent = data.actual_item || '—';
+      document.getElementById('detailCategory').textContent = data.category || '—';
+      document.getElementById('detailCost').textContent = '$' + (data.cost || 0).toLocaleString();
+      document.getElementById('detailSource').textContent = data.source || '—';
+      document.getElementById('detailModalTitle').textContent = '聖物 #' + stickerStr;
+      document.getElementById('detailModalSubtitle').textContent = data.item_name || '';
+
+      var notesRow = document.getElementById('detailNotesRow');
+      var notesEl = document.getElementById('detailNotes');
+      if (data.notes && data.notes.trim()) {
+        notesRow.style.display = 'block';
+        notesEl.textContent = data.notes;
+      } else {
+        notesRow.style.display = 'none';
+      }
+
+      var wonSection = document.getElementById('detailWonSection');
+      var notWonSection = document.getElementById('detailNotWonSection');
+
+      if (data.is_won) {
+        wonSection.style.display = 'block';
+        notWonSection.style.display = 'none';
+        document.getElementById('detailBidderName').textContent = data.bidder_name || '—';
+        document.getElementById('detailBidAmount').textContent = '$' + (data.bid_amount || 0).toLocaleString();
+        document.getElementById('detailPaidAmount').textContent = data.paid_amount > 0 ? '$' + data.paid_amount.toLocaleString() : '未付款';
+        document.getElementById('detailPaymentMethod').textContent = data.payment_method || '—';
+      } else {
+        wonSection.style.display = 'none';
+        notWonSection.style.display = 'block';
+      }
+
+      // Show bid history if available
+      if (data.bids && data.bids.length > 0 && bidHistSection) {
+        renderBidHistory(data.bids);
+        bidHistSection.style.display = 'block';
+      }
+    })
+    .catch(function (err) {
+      console.error('Item detail fetch error:', err);
+      if (loading) loading.style.display = 'none';
+      if (content) content.style.display = 'block';
+      document.getElementById('detailItemName').textContent = '載入失敗';
+      document.getElementById('detailModalSubtitle').textContent = '無法獲取聖物詳情';
+    });
+}
+
+/**
+ * Render the bid history table into the modal.
+ * @param {Array} bids - Array of bid objects {year, member_name, bid_amount, paid_amount, unpaid}
+ */
+function renderBidHistory(bids) {
+  var histContent = document.getElementById('detailBidHistoryContent');
+  if (!histContent || !bids || bids.length === 0) return;
+
+  var tableHtml = '<table class="imperial-table" style="font-size:0.8125rem;"><thead><tr>' +
+    '<th>年份</th><th>競投者</th><th style="text-align:right;">金額</th>' +
+    '<th style="text-align:right;">已付</th><th style="text-align:right;">欠款</th>' +
+    '</tr></thead><tbody>';
+
+  bids.forEach(function(b) {
+    var unpaid = (b.bid_amount || 0) - (b.paid_amount || 0);
+    tableHtml += '<tr>' +
+      '<td><span class="chip chip-gold">' + b.year + '</span></td>' +
+      '<td>' + (b.member_name || '—') + '</td>' +
+      '<td style="text-align:right;">$' + (b.bid_amount || 0).toLocaleString() + '</td>' +
+      '<td style="text-align:right;">' + (b.paid_amount > 0 ? '$' + b.paid_amount.toLocaleString() : '—') + '</td>' +
+      '<td style="text-align:right;">' + (unpaid > 0 ? '<span style="color:var(--tertiary);font-weight:600;">$' + unpaid.toLocaleString() + '</span>' : '$0') + '</td>' +
+      '</tr>';
+  });
+
+  tableHtml += '</tbody></table>';
+  histContent.innerHTML = tableHtml;
 }
 
 function closeItemDetail() {

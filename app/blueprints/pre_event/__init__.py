@@ -15,6 +15,7 @@ from app.models.expense import Expense
 from app.models.sponsor import Sponsor
 from app.models.member import Member
 from app.models.bid import Bid
+from app.models.item import Item
 
 bp = Blueprint("pre_event", __name__,
                url_prefix="/pre")
@@ -449,6 +450,61 @@ def item_detail_api(item_id):
         "bid_amount": item.bid_amount or 0,
         "paid_amount": item.paid_amount or 0,
         "payment_method": item.payment_method or "",
+    })
+
+
+@bp.route("/api/items/<int:item_id>/detail")
+@login_required
+def item_detail_from_db(item_id):
+    """
+    Return JSON with Item detail + bid history for the Item model
+    (main items table, used by bid history views).
+    """
+    item = Item.query.filter_by(item_id=item_id).first()
+    if not item:
+        return jsonify({"error": "Item not found"}), 404
+
+    item_name = item.name_1_auspicious or ""
+    actual_item = item.name_2_description or ""
+
+    # All bids for this item, newest first
+    bids = (
+        Bid.query
+        .filter(Bid.item_id == item_id)
+        .order_by(Bid.year.desc(), Bid.bid_no)
+        .all()
+    )
+
+    bid_records = []
+    for b in bids:
+        member_name = b.member.name if b.member else ""
+        unpaid = (b.bid_amount or 0) - (b.paid_amount or 0)
+        bid_records.append({
+            "year": b.year,
+            "member_name": member_name,
+            "bid_amount": b.bid_amount or 0,
+            "paid_amount": b.paid_amount or 0,
+            "unpaid": max(unpaid, 0),
+        })
+
+    is_won = len(bids) > 0
+    latest_bid = bids[0] if bids else None
+
+    return jsonify({
+        "id": item.item_id,
+        "sticker_no": item.item_id,
+        "item_name": item_name or "—",
+        "actual_item": actual_item or "—",
+        "category": "—",
+        "cost": 0,
+        "source": "—",
+        "notes": "",
+        "is_won": is_won,
+        "bidder_name": latest_bid.member.name if latest_bid and latest_bid.member else "",
+        "bid_amount": latest_bid.bid_amount if latest_bid else 0,
+        "paid_amount": latest_bid.paid_amount if latest_bid else 0,
+        "payment_method": latest_bid.payment_method if latest_bid else "",
+        "bids": bid_records,
     })
 
 
