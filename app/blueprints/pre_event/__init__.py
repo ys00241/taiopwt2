@@ -51,7 +51,14 @@ def pre_items():
         .all()
     )
     years = [r[0] for r in years]
-    return render_template("pre_event/items.html", items=items, year=year, years=years)
+
+    # Stats for stat cards
+    total = len(items)
+    unauctioned = sum(1 for i in items if not i.bidder_name)
+    auctioned = total - unauctioned
+    stats = {"total": total, "unauctioned": unauctioned, "auctioned": auctioned}
+
+    return render_template("pre_event/items.html", items=items, year=year, years=years, stats=stats)
 
 
 @bp.route("/items/add", methods=["POST"])
@@ -662,10 +669,10 @@ def pre_previous():
     years = [r[0] for r in db.session.query(Bid.year).distinct().order_by(Bid.year.desc()).all()]
 
     # Compute stats for template
-    total_due = sum((r.total_due or 0) for r in result)
-    total_paid = sum((r.total_paid or 0) for r in result)
-    total_unpaid = sum((r.unpaid or 0) for r in result)
-    unpaid_count = sum(1 for r in result if (r.unpaid or 0) > 0)
+    total_due = sum((r.get("total_due") or 0) for r in result)
+    total_paid = sum((r.get("total_paid") or 0) for r in result)
+    total_unpaid = sum((r.get("unpaid") or 0) for r in result)
+    unpaid_count = sum(1 for r in result if (r.get("unpaid") or 0) > 0)
 
     return render_template(
         "pre_event/previous.html",

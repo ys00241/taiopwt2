@@ -51,6 +51,13 @@ def live_bidding():
         .all()
     ]
 
+    # Stats for template
+    stats = {
+        "bid_total": sum((i.bid_amount or 0) for i in won),
+        "won_count": len(won),
+        "available_count": len(available),
+    }
+
     return render_template(
         "live_event/bidding.html",
         available=available, won=won,
@@ -58,6 +65,7 @@ def live_bidding():
         members=members,
         years=years,
         year=year,
+        stats=stats,
     )
 
 
@@ -575,18 +583,27 @@ def live_dashboard():
         .scalar()
     )
 
+    # Build stats dict for template
+    top_bidder_name = top_item.bidder_name if top_item else None
+    total_items_count = ThisYearItem.query.filter(ThisYearItem.year == year).count()
+
+    stats_dict = {
+        "bid_total": bid_stats.total or 0,
+        "paid_total": live_collected or 0,
+        "remaining_items": items_left or 0,
+        "total_items": total_items_count,
+        "live_expenses": total_live_expenses or 0,
+        "highest_bid": bid_stats.highest or 0,
+        "highest_bidder": top_bidder_name,
+    }
+
     return render_template(
         "live_event/dashboard.html",
         year=year_str, prev_year=str(prev_year),
         prev_unpaid={"cnt": prev_unpaid.cnt or 0, "total": prev_unpaid.total or 0},
         prev_paid={"cnt": prev_paid.cnt or 0, "total": prev_paid.total or 0},
         live_collected=live_collected or 0,
-        bid_stats={
-            "cnt": bid_stats.cnt or 0,
-            "total": bid_stats.total or 0,
-            "highest": bid_stats.highest or 0,
-            "avg": bid_stats.avg or 0,
-        } if bid_stats else {"cnt": 0, "total": 0, "highest": 0, "avg": 0},
+        stats=stats_dict,
         top_item=top_item,
         total_expenses=(total_pre_expenses or 0) + (total_live_expenses or 0),
         total_pre_expenses=total_pre_expenses or 0,
