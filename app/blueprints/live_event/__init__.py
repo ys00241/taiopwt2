@@ -61,7 +61,7 @@ def live_bidding():
     }
 
     # Build members JSON for JS autocomplete
-    members_json = json.dumps([{"id": m.member_id, "name": m.name, "phone": m.phone or ""} for m in members], ensure_ascii=False)
+    members_json = json.dumps([{"id": m.member_id, "name": m.name, "phone": m.phone or ""} for m in members], ensure_ascii=True)
 
     return render_template(
         "live_event/bidding.html",
@@ -310,7 +310,8 @@ def live_payments():
 
     return render_template(
         "live_event/payments.html",
-        members=result, recent_payments=recent,
+        members=result, members_json=json.dumps(result),
+        recent_payments=recent,
         year=year, source_year=source_year, search=search,
         years=years,
     )

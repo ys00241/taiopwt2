@@ -13,6 +13,14 @@
     返回會員列表
   </a>
 
+  <!-- ═══ Edit button ═══ -->
+  <div class="flex justify-end mb-sm">
+    <button class="btn-secondary" onclick="openEditModal()">
+      <span class="material-symbols-outlined">edit</span>
+      編輯資料
+    </button>
+  </div>
+
   <!-- ═══ Member Info Card ═══ -->
   <div class="imperial-card mb-lg">
     <div class="flex flex-col sm:flex-row sm:items-start gap-lg">
@@ -26,6 +34,16 @@
         <div class="flex flex-wrap items-center gap-x-lg gap-y-sm mb-sm">
           <h2 class="font-headline-md" style="color: var(--on-surface); margin: 0;">{{ member.name }}</h2>
           <span class="font-body-sm" style="color: var(--on-surface-variant);">#{{ "%03d"|format(member.member_id) }}</span>
+          {% if member.member_type == 'friend' %}
+          <span class="chip" style="background: #e0f2fe; color: #0369a1;">會友</span>
+          {% else %}
+          <span class="chip" style="background: #fef3c7; color: #92400e;">會員</span>
+          {% endif %}
+          {% if member.status == 'inactive' %}
+          <span class="chip" style="background: #fce4ec; color: #c62828;">已退</span>
+          {% else %}
+          <span class="chip" style="background: #e8f5e9; color: #2e7d32;">有效</span>
+          {% endif %}
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">

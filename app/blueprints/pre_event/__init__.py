@@ -37,13 +37,23 @@ PREDEFINED_CATEGORIES = [
 @login_required
 def pre_items():
     """今年聖物列表 — Current year items with sticker numbers."""
+    import logging
+    logger = logging.getLogger(__name__)
     year = request.args.get("year", datetime.now().strftime("%Y"))
+    year_int = int(year)
     items = (
         ThisYearItem.query
-        .filter_by(year=int(year))
+        .filter_by(year=year_int)
         .order_by(ThisYearItem.sticker_no)
         .all()
     )
+    # Safety check: verify all returned items match the requested year
+    mismatched = [i for i in items if i.year != year_int]
+    if mismatched:
+        logger.warning(
+            "pre_items: %d item(s) with year mismatch (expected %s). IDs: %s",
+            len(mismatched), year, [i.id for i in mismatched],
+        )
     years = (
         db.session.query(ThisYearItem.year)
         .distinct()
@@ -58,7 +68,7 @@ def pre_items():
     auctioned = total - unauctioned
     stats = {"total": total, "unauctioned": unauctioned, "auctioned": auctioned}
 
-    items_json = json.dumps([dict(
+    items_json = json.dumps({str(i.id): dict(
         id=i.id,
         item_name=i.item_name,
         category=i.category,
@@ -67,7 +77,7 @@ def pre_items():
         notes=i.notes,
         actual_item=i.actual_item,
         sticker_no=i.sticker_no,
-    ) for i in items], ensure_ascii=False)
+    ) for i in items}, ensure_ascii=False)
 
     return render_template(
         "pre_event/items.html",
@@ -329,6 +339,20 @@ def pre_items_sticker_pdf():
     label_h = 35 * mm
     cols, rows = 3, 8
     gold = HexColor("#b8860b")
+
+    if not items:
+        # Empty state — show message instead of blank page
+        c.setFont("Helvetica-Bold", 18)
+        c.setFillColor(HexColor("#8c847a"))
+        c.drawCentredString(width / 2, height / 2, "暫無聖物資料")
+        c.save()
+        buf.seek(0)
+        return send_file(
+            buf,
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=f"sticker_labels_{year}.pdf",
+        )
 
     for idx, item in enumerate(items):
         col = idx % cols

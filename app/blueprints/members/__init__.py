@@ -51,6 +51,10 @@ def list_members():
         .subquery()
     )
 
+    # Filters
+    member_type_filter = request.args.get("member_type", "").strip()
+    status_filter = request.args.get("status", "").strip()
+
     query = (
         db.session.query(
             Member.member_id,
@@ -59,6 +63,8 @@ def list_members():
             Member.phone_2,
             Member.home_address,
             Member.first_year,
+            Member.member_type,
+            Member.status,
             func.coalesce(due_sub.c.total_due, 0).label("total_due"),
             func.coalesce(paid_sub.c.total_paid, 0).label("total_paid"),
             last_pay_sub.c.last_pay_date,
@@ -84,6 +90,8 @@ def list_members():
                 "phone_2": r.phone_2 or "",
                 "home_address": r.home_address or "",
                 "first_year": r.first_year,
+                "member_type": r.member_type or "member",
+                "status": r.status or "active",
                 "total_due": float(r.total_due),
                 "total_paid": float(r.total_paid),
                 "last_pay_date": r.last_pay_date,
@@ -135,7 +143,25 @@ def list_members():
             if (m["total_due"] - m["total_paid"]) <= 0
         ]
 
-    return render_template("members/members.html", members=members_list, search=search)
+    # Member type filter
+    if member_type_filter in ("member", "friend"):
+        members_list = [
+            m for m in members_list if m["member_type"] == member_type_filter
+        ]
+
+    # Status filter
+    if status_filter in ("active", "inactive"):
+        members_list = [
+            m for m in members_list if m["status"] == status_filter
+        ]
+
+    return render_template(
+        "members/members.html",
+        members=members_list,
+        search=search,
+        member_type=member_type_filter,
+        status=status_filter,
+    )
 
 
 @bp.route("/members/<int:member_id>")
@@ -203,6 +229,8 @@ def add_member():
     phone_2 = request.form.get("phone_2", "").strip()
     home_address = request.form.get("home_address", "").strip()
     first_year_str = request.form.get("first_year", "").strip()
+    member_type = request.form.get("member_type", "member").strip()
+    status = request.form.get("status", "active").strip()
 
     if not name:
         return jsonify({"error": "會員姓名為必填"}), 400
@@ -222,6 +250,8 @@ def add_member():
         phone_2=phone_2 or None,
         home_address=home_address or None,
         first_year=int(first_year_str) if first_year_str else None,
+        member_type=member_type if member_type in ("member", "friend") else "member",
+        status=status if status in ("active", "inactive") else "active",
     )
     db.session.add(member)
     db.session.commit()
@@ -255,6 +285,12 @@ def edit_member(member_id):
     member.first_year = (
         int(first_year_str) if first_year_str else None
     )
+    member_type = request.form.get("member_type", "").strip()
+    if member_type in ("member", "friend"):
+        member.member_type = member_type
+    status = request.form.get("status", "").strip()
+    if status in ("active", "inactive"):
+        member.status = status
 
     db.session.commit()
     return jsonify({"ok": True})
@@ -292,6 +328,8 @@ def export_members():
             "phone_2",
             "home_address",
             "first_year",
+            "member_type",
+            "status",
         ]
     )
     for m in members:
@@ -303,6 +341,8 @@ def export_members():
                 m.phone_2 or "",
                 m.home_address or "",
                 m.first_year or "",
+                m.member_type or "member",
+                m.status or "active",
             ]
         )
 
@@ -356,6 +396,16 @@ def import_members():
                 int(row.get("first_year", "").strip())
                 if row.get("first_year", "").strip()
                 else None
+            ),
+            member_type=(
+                row.get("member_type", "member").strip()
+                if row.get("member_type", "").strip() in ("member", "friend")
+                else "member"
+            ),
+            status=(
+                row.get("status", "active").strip()
+                if row.get("status", "").strip() in ("active", "inactive")
+                else "active"
             ),
         )
         db.session.add(member)

@@ -24,6 +24,24 @@
         <button class="filter-btn {% if request.args.get('unpaid') == 'no' %}active{% endif %}"
                 data-value="no" onclick="onUnpaidFilter('no')">已清</button>
       </div>
+      <!-- Member type filter -->
+      <div class="flex items-center gap-xs" style="background: var(--surface-container); border-radius: 10px; padding: 0.25rem;">
+        <button class="filter-btn {% if not request.args.get('member_type') %}active{% endif %}"
+                data-value="" onclick="onMemberTypeFilter('')">全部</button>
+        <button class="filter-btn {% if request.args.get('member_type') == 'member' %}active{% endif %}"
+                data-value="member" onclick="onMemberTypeFilter('member')">會員</button>
+        <button class="filter-btn {% if request.args.get('member_type') == 'friend' %}active{% endif %}"
+                data-value="friend" onclick="onMemberTypeFilter('friend')">會友</button>
+      </div>
+      <!-- Status filter -->
+      <div class="flex items-center gap-xs" style="background: var(--surface-container); border-radius: 10px; padding: 0.25rem;">
+        <button class="filter-btn {% if not request.args.get('status') %}active{% endif %}"
+                data-value="" onclick="onStatusFilter('')">全部</button>
+        <button class="filter-btn {% if request.args.get('status') == 'active' %}active{% endif %}"
+                data-value="active" onclick="onStatusFilter('active')">有效</button>
+        <button class="filter-btn {% if request.args.get('status') == 'inactive' %}active{% endif %}"
+                data-value="inactive" onclick="onStatusFilter('inactive')">已退</button>
+      </div>
     </div>
     <div class="flex items-center gap-sm">
       <!-- Import CSV -->
@@ -66,6 +84,18 @@
           <td style="font-weight: 600; color: var(--primary);">#{{ "%03d"|format(m.member_id) }}</td>
           <td>
             <div class="font-label-lg" style="color: var(--on-surface);">{{ m.name }}</div>
+            <div class="flex items-center gap-xs mt-xs">
+              {% if m.member_type == 'friend' %}
+              <span class="chip" style="background: #e0f2fe; color: #0369a1; font-size: 0.7rem;">會友</span>
+              {% else %}
+              <span class="chip" style="background: #fef3c7; color: #92400e; font-size: 0.7rem;">會員</span>
+              {% endif %}
+              {% if m.status == 'inactive' %}
+              <span class="chip" style="background: #fce4ec; color: #c62828; font-size: 0.7rem;">已退</span>
+              {% else %}
+              <span class="chip" style="background: #e8f5e9; color: #2e7d32; font-size: 0.7rem;">有效</span>
+              {% endif %}
+            </div>
           </td>
           <td>
             <div class="font-body-sm" style="color: var(--on-surface-variant);">{{ m.phone or '—' }}</div>
@@ -131,7 +161,18 @@
       <div class="flex-1 min-w-0">
         <div class="flex items-center justify-between">
           <span class="font-label-lg truncate" style="color: var(--on-surface);">{{ m.name }}</span>
-          {% set unpaid = m.total_due - m.total_paid %}
+          <div class="flex items-center gap-xs">
+            {% if m.member_type == 'friend' %}
+            <span class="chip" style="background: #e0f2fe; color: #0369a1; font-size: 0.65rem;">會友</span>
+            {% else %}
+            <span class="chip" style="background: #fef3c7; color: #92400e; font-size: 0.65rem;">會員</span>
+            {% endif %}
+            {% if m.status == 'inactive' %}
+            <span class="chip" style="background: #fce4ec; color: #c62828; font-size: 0.65rem;">已退</span>
+            {% else %}
+            <span class="chip" style="background: #e8f5e9; color: #2e7d32; font-size: 0.65rem;">有效</span>
+            {% endif %}
+            {% set unpaid = m.total_due - m.total_paid %}
           {% if unpaid > 0 %}
           <span class="chip chip-red">${{ unpaid|int }}</span>
           {% elif m.total_due > 0 %}
@@ -206,6 +247,22 @@
           <label class="form-label" for="add_first_year">加入年份</label>
           <input class="form-input" type="number" id="add_first_year" name="first_year" placeholder="e.g. 2025"
                  min="1900" max="2099">
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-md">
+          <div>
+            <label class="form-label" for="add_member_type">會員類型</label>
+            <select class="form-input" id="add_member_type" name="member_type">
+              <option value="member" selected>會員</option>
+              <option value="friend">會友</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" for="add_status">狀態</label>
+            <select class="form-input" id="add_status" name="status">
+              <option value="active" selected>有效</option>
+              <option value="inactive">已退</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -293,6 +350,22 @@
     const url = new URL(window.location.href);
     if (val) url.searchParams.set('unpaid', val);
     else url.searchParams.delete('unpaid');
+    window.location.href = url.toString();
+  }
+
+  // ── Member type filter ──
+  function onMemberTypeFilter(val) {
+    const url = new URL(window.location.href);
+    if (val) url.searchParams.set('member_type', val);
+    else url.searchParams.delete('member_type');
+    window.location.href = url.toString();
+  }
+
+  // ── Status filter ──
+  function onStatusFilter(val) {
+    const url = new URL(window.location.href);
+    if (val) url.searchParams.set('status', val);
+    else url.searchParams.delete('status');
     window.location.href = url.toString();
   }
 

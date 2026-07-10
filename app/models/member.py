@@ -15,6 +15,8 @@ class Member(db.Model):
     phone_2 = db.Column(db.String(50), comment="後備電話")
     home_address = db.Column(db.Text, comment="地址")
     first_year = db.Column(db.Integer, comment="加入年份")
+    member_type = db.Column(db.String(20), default='member', comment="會員類型: member=會員, friend=會友")
+    status = db.Column(db.String(20), default='active', comment="狀態: active=有效, inactive=已退")
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
 

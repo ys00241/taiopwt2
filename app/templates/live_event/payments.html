@@ -315,7 +315,7 @@
       </div>
     </div>
 
-    <form id="paymentForm" method="POST" action="{{ url_for('live_event.live_payments') }}">
+    <form id="paymentForm" method="POST" action="{{ url_for('live_event.live_payments_pay') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
       <input type="hidden" name="member_id" id="payMemberId" value="">
 
