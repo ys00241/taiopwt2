@@ -10,7 +10,7 @@ Routes:
 """
 from datetime import date
 
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, Response, jsonify, request, render_template
 from flask_login import login_required
 from sqlalchemy import func
 
@@ -49,13 +49,13 @@ def cashbook_index():
     entries = get_daily_entries(year, month)
     summary = get_cashbook_summary(year)
 
-    return jsonify({
-        "ok": True,
-        "year": year,
-        "month": month,
-        "entries": entries,
-        "summary": summary,
-    })
+    return render_template("list.html",
+                           year=year,
+                           month=month,
+                           entries=entries,
+                           summary=summary,
+                           income_categories=INCOME_CATEGORIES,
+                           expense_categories=EXPENSE_CATEGORIES)
 
 
 @bp.route("/add", methods=["POST"])

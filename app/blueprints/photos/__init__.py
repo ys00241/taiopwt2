@@ -13,7 +13,7 @@ Routes:
 from datetime import date
 from pathlib import Path
 
-from flask import Blueprint, Response, jsonify, request, send_file
+from flask import Blueprint, Response, jsonify, request, send_file, render_template
 from flask_login import login_required
 from sqlalchemy import func
 
@@ -52,11 +52,9 @@ def photo_gallery():
     """
     year = request.args.get("year", type=int) or _get_default_year()
     photos = get_photos(year)
-    return jsonify({
-        "ok": True,
-        "year": year,
-        "photos": photos,
-    })
+    return render_template("gallery.html",
+                           year=year,
+                           photos=photos)
 
 
 @bp.route("/upload", methods=["POST"])
