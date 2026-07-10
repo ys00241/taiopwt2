@@ -8,7 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent
 class Config:
     """Base configuration."""
 
-    SECRET_KEY = os.environ.get("SECRET_KEY", "taio-pwt2-dev-key-change-in-prod")
+    SECRET_KEY = os.environ.get("SECRET_KEY", "")
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         "DATABASE_URL",
         f"sqlite:///{BASE_DIR / 'data' / 'paopao.db'}",

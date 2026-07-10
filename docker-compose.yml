@@ -12,5 +12,5 @@ services:
       - ./csv_exports:/app/csv_exports
     environment:
       - FLASK_ENV=production
-      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - SECRET_KEY=${SECRET_KEY}
     restart: unless-stopped
