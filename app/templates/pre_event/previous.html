@@ -237,6 +237,7 @@
   }
 
   // ── Batch actions ──
+  const year = '{{ year }}';
   function getSelectedIds() {
     return Array.from(document.querySelectorAll('.debt-select:checked')).map(cb => cb.value);
   }
@@ -244,13 +245,65 @@
   function generatePDF() {
     const ids = getSelectedIds();
     if (ids.length === 0) { alert('請先選擇會員'); return; }
-    window.open('{{ url_for("pre_event.pre_previous") }}/pdf?ids=' + ids.join(','), '_blank');
+
+    const formData = new FormData();
+    formData.append('year', year);
+    ids.forEach(id => formData.append('member_ids', id));
+
+    // Use POST fetch to download the PDF blob
+    fetch('{{ url_for("pre_event.pre_previous_batch_pdf") }}', {
+      method: 'POST',
+      body: formData,
+    })
+    .then(r => {
+      if (!r.ok) throw new Error('Server error');
+      return r.blob();
+    })
+    .then(blob => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'batch_invoice_' + year + '.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    })
+    .catch(err => {
+      alert('生成 PDF 失敗: ' + err.message);
+    });
   }
 
   function downloadZIP() {
     const ids = getSelectedIds();
     if (ids.length === 0) { alert('請先選擇會員'); return; }
-    window.open('{{ url_for("pre_event.pre_previous") }}/zip?ids=' + ids.join(','), '_blank');
+
+    const formData = new FormData();
+    formData.append('year', year);
+    ids.forEach(id => formData.append('member_ids', id));
+
+    // Use POST fetch to download the ZIP blob
+    fetch('{{ url_for("pre_event.pre_previous_batch_export") }}', {
+      method: 'POST',
+      body: formData,
+    })
+    .then(r => {
+      if (!r.ok) throw new Error('Server error');
+      return r.blob();
+    })
+    .then(blob => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'batch_invoice_' + year + '.zip';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    })
+    .catch(err => {
+      alert('下載 ZIP 失敗: ' + err.message);
+    });
   }
 </script>
 {% endblock %}

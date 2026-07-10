@@ -8,6 +8,7 @@
   ("/pl", "pl", "財務管理", "account_balance"),
   ("/cashbook", "cashbook", "日記帳", "book"),
   ("/manage", "manage", "管理", "settings"),
+  ("/manage/categories", "categories", "類別", "category"),
 ] -%}
 {%- set bottom_nav = [
   ("/", "home", "首頁", "home"),
@@ -645,6 +646,9 @@
           <div class="font-label-lg truncate" style="color: var(--on-surface);">管理員</div>
           <div class="font-body-sm" style="color: var(--on-surface-variant);">admin@taio.org</div>
         </div>
+        <a href="{{ url_for('manage.logout') }}" class="icon-btn" title="登出" style="width:36px;height:36px;flex-shrink:0;">
+          <span class="material-symbols-outlined">logout</span>
+        </a>
       </div>
     </div>
   </aside>
@@ -675,6 +679,11 @@
         <button class="icon-btn notification-dot" aria-label="通知">
           <span class="material-symbols-outlined">notifications</span>
         </button>
+
+        <!-- Logout -->
+        <a href="{{ url_for('manage.logout') }}" class="icon-btn" title="登出">
+          <span class="material-symbols-outlined">logout</span>
+        </a>
 
         <!-- Avatar (mobile) -->
         <div class="avatar md:hidden">管</div>

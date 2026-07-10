@@ -58,7 +58,25 @@ def pre_items():
     auctioned = total - unauctioned
     stats = {"total": total, "unauctioned": unauctioned, "auctioned": auctioned}
 
-    return render_template("pre_event/items.html", items=items, year=year, years=years, stats=stats)
+    items_json = json.dumps([dict(
+        id=i.id,
+        item_name=i.item_name,
+        category=i.category,
+        cost=i.cost,
+        source=i.source,
+        notes=i.notes,
+        actual_item=i.actual_item,
+        sticker_no=i.sticker_no,
+    ) for i in items], ensure_ascii=False)
+
+    return render_template(
+        "pre_event/items.html",
+        items=items,
+        year=year,
+        years=years,
+        stats=stats,
+        items_json=items_json,
+    )
 
 
 @bp.route("/items/add", methods=["POST"])
@@ -379,7 +397,23 @@ def pre_expenses():
         .filter(Expense.year == int(year), Expense.source == "pre")
         .scalar()
     )
-    return render_template("pre_event/expenses.html", items=items, year=year, total=total)
+    cash_sum = (
+        db.session.query(db.func.coalesce(db.func.sum(Expense.amount), 0))
+        .filter(Expense.year == int(year), Expense.source == "pre", Expense.payment_method == "CASH")
+        .scalar()
+    )
+    chq_sum = (
+        db.session.query(db.func.coalesce(db.func.sum(Expense.amount), 0))
+        .filter(Expense.year == int(year), Expense.source == "pre", Expense.payment_method == "CHQ")
+        .scalar()
+    )
+    fps_sum = (
+        db.session.query(db.func.coalesce(db.func.sum(Expense.amount), 0))
+        .filter(Expense.year == int(year), Expense.source == "pre", Expense.payment_method == "轉數快")
+        .scalar()
+    )
+    stats = {"total": total, "cash": cash_sum, "chq": chq_sum, "fps": fps_sum}
+    return render_template("pre_event/expenses.html", expenses=items, year=year, stats=stats)
 
 
 @bp.route("/expenses/add", methods=["POST"])
@@ -493,7 +527,9 @@ def pre_sponsors():
         .filter(Sponsor.year == int(year))
         .scalar()
     )
-    return render_template("pre_event/sponsors.html", items=items, year=year, total=total)
+    max_amount = max((item.amount or 0) for item in items) if items else 0
+    stats = {"total": total, "count": len(items), "highest": max_amount}
+    return render_template("pre_event/sponsors.html", sponsors=items, year=year, stats=stats)
 
 
 @bp.route("/sponsors/add", methods=["POST"])

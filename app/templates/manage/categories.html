@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block title %}類別管理 — 寶榮堂花炮會{% endblock %}
+{% block page_title %}類別管理 Categories{% endblock %}
+
+{% block head %}
+<style>
+  .cat-section { margin-bottom: 2rem; }
+  .cat-list { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+  .cat-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    background: var(--surface-container);
+    border: 1px solid var(--outline-variant);
+    border-radius: 999px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8125rem;
+    color: var(--on-surface);
+  }
+  .cat-tag .remove-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border: none;
+    background: transparent;
+    color: var(--tertiary);
+    cursor: pointer;
+    border-radius: 50%;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0;
+    transition: background 0.15s;
+  }
+  .cat-tag .remove-btn:hover {
+    background: var(--surface-container-high);
+  }
+  .add-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+  .add-row input {
+    flex: 1;
+    max-width: 300px;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--outline-variant);
+    border-radius: 10px;
+    background: var(--surface);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.875rem;
+    color: var(--on-surface);
+    outline: none;
+  }
+  .add-row input:focus {
+    border-color: var(--primary);
+  }
+  .msg {
+    margin-top: 0.5rem;
+    font-size: 0.8125rem;
+  }
+  .msg-success { color: #166534; }
+  .msg-error { color: var(--tertiary); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+
+  <p class="font-body-sm mb-lg" style="color: var(--on-surface-variant);">
+    管理物品類別及支出類別 — 新增或移除分類選項
+  </p>
+
+  <!-- ════════════════════════════════════════ -->
+  <!--  Item Categories                        -->
+  <!-- ════════════════════════════════════════ -->
+  <div class="imperial-card cat-section">
+    <h2 class="font-headline-md mb-sm" style="color: var(--on-surface);">
+      <span class="material-symbols-outlined" style="vertical-align: middle; margin-right: 0.25rem;">category</span>
+      物品類別 Item Categories
+    </h2>
+    <p class="font-body-sm mb-sm" style="color: var(--on-surface-variant);">
+      用於聖物項目的分類標籤
+    </p>
+
+    <div class="cat-list" id="itemCategories">
+      {% for cat in item_categories %}
+      <span class="cat-tag">
+        {{ cat }}
+        <button class="remove-btn" onclick="removeCategory('item', {{ loop.index0 }}, this)" title="移除">×</button>
+      </span>
+      {% endfor %}
+    </div>
+
+    <div class="add-row">
+      <input type="text" id="newItemCat" placeholder="輸入新類別名稱..." maxlength="50"
+             onkeydown="if(event.key==='Enter') addCategory('item')">
+      <button class="btn-primary" onclick="addCategory('item')" style="padding: 0.5rem 1rem;">
+        <span class="material-symbols-outlined" style="font-size: 1rem;">add</span>
+        新增
+      </button>
+    </div>
+    <div id="itemMsg" class="msg"></div>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <!--  Expense Categories                     -->
+  <!-- ════════════════════════════════════════ -->
+  <div class="imperial-card cat-section">
+    <h2 class="font-headline-md mb-sm" style="color: var(--on-surface);">
+      <span class="material-symbols-outlined" style="vertical-align: middle; margin-right: 0.25rem;">receipt_long</span>
+      支出類別 Expense Categories
+    </h2>
+    <p class="font-body-sm mb-sm" style="color: var(--on-surface-variant);">
+      用於前期支出項目的分類標籤
+    </p>
+
+    <div class="cat-list" id="expenseCategories">
+      {% for cat in expense_categories %}
+      <span class="cat-tag">
+        {{ cat }}
+        <button class="remove-btn" onclick="removeCategory('expense', {{ loop.index0 }}, this)" title="移除">×</button>
+      </span>
+      {% endfor %}
+    </div>
+
+    <div class="add-row">
+      <input type="text" id="newExpenseCat" placeholder="輸入新類別名稱..." maxlength="50"
+             onkeydown="if(event.key==='Enter') addCategory('expense')">
+      <button class="btn-primary" onclick="addCategory('expense')" style="padding: 0.5rem 1rem;">
+        <span class="material-symbols-outlined" style="font-size: 1rem;">add</span>
+        新增
+      </button>
+    </div>
+    <div id="expenseMsg" class="msg"></div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function addCategory(type) {
+  const inputId = type === 'item' ? 'newItemCat' : 'newExpenseCat';
+  const msgId = type === 'item' ? 'itemMsg' : 'expenseMsg';
+  const input = document.getElementById(inputId);
+  const msg = document.getElementById(msgId);
+  const name = input.value.trim();
+
+  if (!name) {
+    msg.className = 'msg msg-error';
+    msg.textContent = '請輸入類別名稱';
+    return;
+  }
+
+  msg.textContent = '新增中...';
+  msg.className = 'msg';
+
+  const formData = new FormData();
+  formData.append('category', name);
+
+  fetch('/manage/categories/add/' + type, { method: 'POST', body: formData })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        input.value = '';
+        msg.className = 'msg msg-success';
+        msg.textContent = '已新增類別';
+        // Refresh the list
+        refreshCategories(type);
+      } else {
+        msg.className = 'msg msg-error';
+        msg.textContent = data.error || '新增失敗';
+      }
+    })
+    .catch(err => {
+      msg.className = 'msg msg-error';
+      msg.textContent = '網絡錯誤: ' + err.message;
+    });
+}
+
+function removeCategory(type, index, btn) {
+  const msgId = type === 'item' ? 'itemMsg' : 'expenseMsg';
+  const msg = document.getElementById(msgId);
+
+  if (!confirm('確定要移除這個類別嗎？')) return;
+
+  const formData = new FormData();
+  formData.append('index', index);
+
+  fetch('/manage/categories/remove/' + type, { method: 'POST', body: formData })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        msg.className = 'msg msg-success';
+        msg.textContent = '已移除: ' + (data.removed || '');
+        refreshCategories(type);
+      } else {
+        msg.className = 'msg msg-error';
+        msg.textContent = data.error || '移除失敗';
+      }
+    })
+    .catch(err => {
+      msg.className = 'msg msg-error';
+      msg.textContent = '網絡錯誤: ' + err.message;
+    });
+}
+
+function refreshCategories(type) {
+  const listId = type === 'item' ? 'itemCategories' : 'expenseCategories';
+  const list = document.getElementById(listId);
+
+  // Reload the page to get fresh data
+  window.location.reload();
+}
+</script>
+{% endblock %}

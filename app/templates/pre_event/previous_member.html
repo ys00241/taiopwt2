@@ -190,10 +190,10 @@
 {% block scripts %}
 <script>
   function generateDocx() {
-    window.open('{{ url_for("pre_event.pre_previous_member", member_id=member.id) }}/docx', '_blank');
+    window.open('{{ url_for("pre_event.generate_invoice", member_id=member.member_id) }}', '_blank');
   }
   function generateXlsx() {
-    window.open('{{ url_for("pre_event.pre_previous_member", member_id=member.id) }}/xlsx', '_blank');
+    window.open('{{ url_for("pre_event.generate_receipt", member_id=member.member_id) }}', '_blank');
   }
 </script>
 {% endblock %}

@@ -148,15 +148,16 @@
       <span class="material-symbols-outlined">add</span>
       新增聖物
     </button>
-    <button class="btn-secondary" onclick="alert('Import CSV — coming soon')">
+    <button class="btn-secondary" onclick="document.getElementById('csvFileInput').click()">
       <span class="material-symbols-outlined">upload_file</span>
       Import CSV
     </button>
-    <button class="btn-secondary" onclick="alert('Export Excel — coming soon')">
+    <input type="file" id="csvFileInput" accept=".csv" style="display:none">
+    <button class="btn-secondary" onclick="window.location.href='/pre/items/export-excel?year={{ year }}'">
       <span class="material-symbols-outlined">download</span>
       Export Excel
     </button>
-    <button class="btn-secondary" onclick="alert('Sticker Labels PDF — coming soon')">
+    <button class="btn-secondary" onclick="window.location.href='/pre/items/sticker-pdf?year={{ year }}'">
       <span class="material-symbols-outlined">confirmation_number</span>
       標籤貼紙
     </button>
@@ -215,6 +216,9 @@
             <button class="icon-btn" onclick="openEditModal({{ item.id }})" title="編輯">
               <span class="material-symbols-outlined">edit</span>
             </button>
+            <button class="icon-btn" onclick="deleteItem({{ item.id }})" title="刪除" style="color:var(--error);">
+              <span class="material-symbols-outlined">delete</span>
+            </button>
           </td>
         </tr>
         {% else %}
@@ -258,6 +262,9 @@
       </div>
       <button class="icon-btn shrink-0" onclick="openEditModal({{ item.id }})" title="編輯">
         <span class="material-symbols-outlined">edit</span>
+      </button>
+      <button class="icon-btn shrink-0" onclick="deleteItem({{ item.id }})" title="刪除" style="color:var(--error);">
+        <span class="material-symbols-outlined">delete</span>
       </button>
     </div>
     {% endfor %}
@@ -312,7 +319,7 @@
       </button>
     </div>
 
-    <form method="POST" action="{{ url_for('pre_event.pre_items') }}" id="itemForm">
+    <form method="POST" id="itemForm">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
       <input type="hidden" name="item_id" id="itemId" value="">
 
@@ -410,13 +417,15 @@
     document.getElementById('modalTitle').textContent = '新增聖物';
     document.getElementById('itemId').value = '';
     document.getElementById('itemForm').reset();
+    document.getElementById('itemForm').action = '{{ url_for("pre_event.pre_items_add") }}';
     openModal();
   }
 
   function openEditModal(itemId) {
     document.getElementById('modalTitle').textContent = '編輯聖物';
     document.getElementById('itemId').value = itemId;
-    // Populate form via API or pre-loaded data
+    document.getElementById('itemForm').action = '/pre/items/' + itemId + '/edit';
+    // Populate form via pre-loaded data
     if (itemsData[itemId]) {
       const d = itemsData[itemId];
       document.getElementById('itemName').value = d.item_name || '';
@@ -428,6 +437,39 @@
     }
     openModal();
   }
+
+  // ── Delete item with confirmation ──
+  function deleteItem(itemId) {
+    if (!confirm('確定要刪除此聖物？此操作無法復原。')) return;
+    fetch('/pre/items/' + itemId + '/delete', { method: 'POST' })
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok) location.reload();
+        else alert('刪除失敗: ' + (d.error || '未知錯誤'));
+      })
+      .catch(() => alert('刪除失敗: 網絡錯誤'));
+  }
+
+  // ── CSV import ──
+  document.addEventListener('DOMContentLoaded', function() {
+    const csvInput = document.getElementById('csvFileInput');
+    if (csvInput) {
+      csvInput.addEventListener('change', function() {
+        if (!this.files || !this.files[0]) return;
+        const fd = new FormData();
+        fd.append('file', this.files[0]);
+        fd.append('year', '{{ year }}');
+        fetch('/pre/items/import-csv', { method: 'POST', body: fd })
+          .then(r => r.json())
+          .then(d => {
+            if (d.ok) { alert('成功匯入 ' + d.count + ' 項'); location.reload(); }
+            else alert('匯入失敗: ' + (d.error || '未知錯誤'));
+          })
+          .catch(() => alert('匯入失敗: 網絡錯誤'));
+        this.value = '';
+      });
+    }
+  });
 
   // ── Close on overlay click ──
   document.getElementById('itemModal')?.addEventListener('click', function(e) {

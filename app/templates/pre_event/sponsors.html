@@ -38,9 +38,8 @@
     <h2 class="font-headline-md mb-md" style="color: var(--on-surface);">
       {% if edit_sponsor %}編輯贊助{% else %}新增贊助{% endif %}
     </h2>
-    <form method="POST" action="{{ url_for('pre_event.pre_sponsors') }}">
+    <form method="POST" action="{{ url_for('pre_event.pre_sponsors_add') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
-      <input type="hidden" name="action" value="{% if edit_sponsor %}update{% else %}add{% endif %}">
       {% if edit_sponsor %}<input type="hidden" name="sponsor_id" value="{{ edit_sponsor.id }}">{% endif %}
 
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-md">

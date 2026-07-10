@@ -49,9 +49,8 @@
   <!-- ═══ Add Expense Form (Desktop card) ═══ -->
   <div class="imperial-card mb-lg hidden md:block">
     <h2 class="font-headline-md mb-md" style="color: var(--on-surface);">新增開支</h2>
-    <form method="POST" action="{{ url_for('pre_event.pre_expenses') }}">
+    <form method="POST" action="{{ url_for('pre_event.pre_expenses_add') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
-      <input type="hidden" name="action" value="add">
 
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
         <div>
@@ -121,9 +120,8 @@
       新增開支
     </button>
     <div id="mobileExpForm" class="imperial-card mt-sm" style="display: none;">
-      <form method="POST" action="{{ url_for('pre_event.pre_expenses') }}">
+      <form method="POST" action="{{ url_for('pre_event.pre_expenses_add') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
-        <input type="hidden" name="action" value="add">
 
         <div class="flex flex-col gap-sm">
           <div>

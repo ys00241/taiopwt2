@@ -479,3 +479,105 @@ def restore_zip():
                 continue
 
     return jsonify(results)
+
+
+# ════════════════════════════════════════════════════════════
+#  Category Management — Item & Expense categories (JSON)
+# ════════════════════════════════════════════════════════════
+
+import json
+from pathlib import Path
+
+
+def _get_categories_path(cat_type: str) -> Path:
+    """Return the JSON file path for the given category type."""
+    from flask import current_app
+    data_dir = Path(current_app.root_path) / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    return data_dir / f"{cat_type}_categories.json"
+
+
+def _load_categories(cat_type: str) -> list:
+    """Load categories from JSON file."""
+    path = _get_categories_path(cat_type)
+    if not path.exists():
+        # Return defaults based on type
+        defaults = {
+            "item": ["花炮", "神像", "祭品", "裝飾", "食品", "飲品", "用品", "其他"],
+            "expense": [
+                "酒席", "場地", "佈置", "音響", "攝影",
+                "神料", "花炮", "樂隊", "歌星", "舞獅",
+                "工作人員", "雜項", "交通", "宣傳", "保險",
+            ],
+        }
+        return defaults.get(cat_type, [])
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return []
+
+
+def _save_categories(cat_type: str, categories: list) -> None:
+    """Save categories to JSON file."""
+    path = _get_categories_path(cat_type)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(categories, f, ensure_ascii=False, indent=2)
+
+
+@bp.route("/categories")
+@login_required
+def categories():
+    """Category management page — manage item & expense categories."""
+    item_cats = _load_categories("item")
+    expense_cats = _load_categories("expense")
+    return render_template(
+        "manage/categories.html",
+        item_categories=item_cats,
+        expense_categories=expense_cats,
+    )
+
+
+@bp.route("/categories/add/<type>", methods=["POST"])
+@login_required
+def categories_add(type):
+    """Add a new category (type=item or expense)."""
+    from flask import request, jsonify
+
+    if type not in ("item", "expense"):
+        return jsonify({"ok": False, "error": "Invalid category type"}), 400
+
+    cat = request.form.get("category", "").strip()
+    if not cat:
+        return jsonify({"ok": False, "error": "Category name is required"}), 400
+
+    cats = _load_categories(type)
+    if cat in cats:
+        return jsonify({"ok": False, "error": "Category already exists"}), 400
+
+    cats.append(cat)
+    _save_categories(type, cats)
+    return jsonify({"ok": True, "categories": cats})
+
+
+@bp.route("/categories/remove/<type>", methods=["POST"])
+@login_required
+def categories_remove(type):
+    """Remove a category by index (type=item or expense)."""
+    from flask import request, jsonify
+
+    if type not in ("item", "expense"):
+        return jsonify({"ok": False, "error": "Invalid category type"}), 400
+
+    try:
+        index = int(request.form.get("index", -1))
+    except (ValueError, TypeError):
+        return jsonify({"ok": False, "error": "Invalid index"}), 400
+
+    cats = _load_categories(type)
+    if index < 0 or index >= len(cats):
+        return jsonify({"ok": False, "error": "Index out of range"}), 400
+
+    removed = cats.pop(index)
+    _save_categories(type, cats)
+    return jsonify({"ok": True, "removed": removed, "categories": cats})

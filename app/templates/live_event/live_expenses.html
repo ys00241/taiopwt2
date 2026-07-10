@@ -31,7 +31,7 @@
       新增即時支出
     </h2>
 
-    <form method="POST" action="{{ url_for('live_event.live_expenses_live') }}">
+    <form method="POST" action="{{ url_for('live_event.live_expenses_live_add') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
 
       <div class="flex flex-col gap-sm">
