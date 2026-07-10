@@ -31,7 +31,16 @@ import openpyxl
 
 # ── Paths ────────────────────────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-EXCEL_PATH = os.path.join(BASE_DIR, "uploads", "input_data.xlsx")
+# Accept Excel path from CLI arg, or check common locations
+if len(sys.argv) > 1:
+    EXCEL_PATH = sys.argv[1]
+else:
+    EXCEL_PATH = os.path.join(BASE_DIR, "uploads", "input_data.xlsx")
+    if not os.path.exists(EXCEL_PATH):
+        # Fallback: check taio_fix path (218機 upload location)
+        alt = os.path.join(BASE_DIR.replace("taiopwt2", "taio_fix"), "uploads", "input_data.xlsx")
+        if os.path.exists(alt):
+            EXCEL_PATH = alt
 DB_PATH = os.path.join(BASE_DIR, "data", "paopao.db")
 
 # ── Per-year sheet configuration ─────────────────────────────────────────

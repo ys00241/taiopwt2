@@ -29,13 +29,13 @@
   </div>
 
   <!-- ═══ Monthly Filter Tabs ═══ -->
+  {% set month_names = {1:'一月',2:'二月',3:'三月',4:'四月',5:'五月',6:'六月',7:'七月',8:'八月',9:'九月',10:'十月',11:'十一月',12:'十二月'} %}
   <div class="flex items-center gap-xs mb-lg overflow-x-auto" style="scrollbar-width: none;">
     <button class="month-tab {% if not month %}active{% endif %}"
             onclick="filterMonth('')" data-month="">
       全部
     </button>
     {% for m in range(1, 13) %}
-    {% set month_names = {1:'一月',2:'二月',3:'三月',4:'四月',5:'五月',6:'六月',7:'七月',8:'八月',9:'九月',10:'十月',11:'十一月',12:'十二月'} %}
     <button class="month-tab {% if month == m %}active{% endif %}"
             onclick="filterMonth({{ m }})" data-month="{{ m }}">
       {{ month_names[m] }}

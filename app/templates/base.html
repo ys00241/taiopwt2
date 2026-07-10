@@ -664,7 +664,7 @@
         <!-- Year selector -->
         <select class="year-selector" id="yearSelect" onchange="onYearChange(this.value)">
           {% set current_year = (year|string)|int if year is not none and year|string != '' else current_year %}
-          {% for y in range(current_year, current_year - 5, -1) %}
+          {% for y in range(current_year, current_year - 15, -1) %}
           <option value="{{ y }}" {% if y == current_year %}selected{% endif %}>{{ y }} 年度</option>
           {% endfor %}
         </select>

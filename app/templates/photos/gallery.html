@@ -69,7 +69,7 @@
         <div class="mb-md">
           <label class="form-label">年份</label>
           <select name="year" class="form-input">
-            {% for y in range(current_year, current_year - 5, -1) %}
+            {% for y in range(current_year, current_year - 15, -1) %}
             <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}年</option>
             {% endfor %}
           </select>

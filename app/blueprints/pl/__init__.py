@@ -13,7 +13,9 @@ def view_pl():
     from app.extensions import db
     from app.models.pl import PL
     from app.models.edition import Edition
+    from app.models.this_year_item import ThisYearItem
     from sqlalchemy import func
+    from datetime import datetime
 
     year = request.args.get("year", type=int)
 
@@ -79,13 +81,23 @@ def view_pl():
         sum(r.amount_hkd or 0 for r in rows) for rows in expense_sections.values()
     )
 
-    # Year list
+    # Year list — from actual data, not Edition table
     years = [
         r[0]
-        for r in db.session.query(Edition.year)
-        .order_by(Edition.year.desc())
+        for r in db.session.query(func.distinct(PL.year))
+        .order_by(PL.year.desc())
         .all()
     ]
+    if not years:
+        years = [
+            r[0]
+            for r in db.session.query(func.distinct(ThisYearItem.year))
+            .order_by(ThisYearItem.year.desc())
+            .all()
+        ]
+    # Default to latest year (from PL or ThisYearItem or hardcoded)
+    if not year:
+        year = years[0] if years else datetime.now().year
 
     return render_template(
         "pl/index.html",
@@ -109,6 +121,7 @@ def export_pl_excel():
     from app.extensions import db
     from app.models.pl import PL
     from app.models.edition import Edition
+    from app.models.this_year_item import ThisYearItem
     from sqlalchemy import func
     import io
 
@@ -118,11 +131,19 @@ def export_pl_excel():
     else:
         selected_years = [
             r[0]
-            for r in db.session.query(Edition.year)
-            .order_by(Edition.year.desc())
+            for r in db.session.query(func.distinct(PL.year))
+            .order_by(PL.year.desc())
             .limit(3)
             .all()
         ]
+        if not selected_years:
+            selected_years = [
+                r[0]
+                for r in db.session.query(func.distinct(ThisYearItem.year))
+                .order_by(ThisYearItem.year.desc())
+                .limit(3)
+                .all()
+            ]
 
     from openpyxl import Workbook
     from openpyxl.styles import Font, Alignment, Border, Side, PatternFill, numbers

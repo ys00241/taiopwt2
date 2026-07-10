@@ -380,7 +380,7 @@
       </button>
     </div>
 
-    <form id="bidForm" method="POST" action="{{ url_for('live_event.live_bidding') }}">
+    <form id="bidForm" method="POST" action="{{ url_for('live_event.live_bidding_record') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
       <input type="hidden" name="item_id" id="bidItemId" value="">
 
