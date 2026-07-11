@@ -126,7 +126,7 @@ function openItemDetail(itemId) {
   modal.classList.add('open');
   document.body.style.overflow = 'hidden';
 
-  fetch('/api/item-detail/' + itemId)
+  fetch('/pre/api/item-detail/' + itemId)
     .then(function (r) { return r.json(); })
     .then(function (data) {
       if (loading) loading.style.display = 'none';
@@ -203,7 +203,7 @@ function openItemDetailFromDb(itemId) {
   modal.classList.add('open');
   document.body.style.overflow = 'hidden';
 
-  fetch('/api/items/' + itemId + '/detail')
+  fetch('/pre/api/items/' + itemId + '/detail')
     .then(function (r) { return r.json(); })
     .then(function (data) {
       if (loading) loading.style.display = 'none';

@@ -539,7 +539,7 @@
   // from clickable debt links elsewhere)
   // ════════════════════════════════════════
   (function() {
-    const searchParam = '{{ search|default("") }}';
+    const searchParam = {{ search|default("")|tojson }};
     if (searchParam) {
       const input = document.getElementById('paymentSearch');
       if (input) {

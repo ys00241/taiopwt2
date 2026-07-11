@@ -436,6 +436,28 @@ def item_detail_api(item_id):
 
     is_won = bool(item.bid_amount and item.bid_amount > 0)
 
+    # Gather bid history from Bid table via Item mapping (sticker_no → item_id)
+    bid_records = []
+    if item.sticker_no:
+        item_record = Item.query.filter_by(item_id=item.sticker_no).first()
+        if item_record:
+            bids = (
+                Bid.query
+                .filter(Bid.item_id == item_record.item_id)
+                .order_by(Bid.year.desc(), Bid.bid_no)
+                .all()
+            )
+            for b in bids:
+                member_name = b.member.name if b.member else ""
+                unpaid = (b.bid_amount or 0) - (b.paid_amount or 0)
+                bid_records.append({
+                    "year": b.year,
+                    "member_name": member_name,
+                    "bid_amount": b.bid_amount or 0,
+                    "paid_amount": b.paid_amount or 0,
+                    "unpaid": max(unpaid, 0),
+                })
+
     return jsonify({
         "id": item.id,
         "sticker_no": item.sticker_no,
@@ -450,6 +472,7 @@ def item_detail_api(item_id):
         "bid_amount": item.bid_amount or 0,
         "paid_amount": item.paid_amount or 0,
         "payment_method": item.payment_method or "",
+        "bids": bid_records,
     })
 
 
