@@ -252,7 +252,7 @@
     {% if not search %}
       {% if members_with_debt %}
         {% for m in members_with_debt %}
-        <div class="member-result-card mb-sm" data-member-id="{{ m.member_id }}" data-member-name="{{ m.name|e }}" data-total-due="{{ m.total_due|default(0)|int }}" data-total-paid="{{ m.total_paid_combined|default(0)|int }}" data-unpaid="{{ m.unpaid|default(0)|int }}" onclick="openPaymentSheet(this.dataset.memberId, this.dataset.memberName, this.dataset.totalDue, this.dataset.totalPaid, this.dataset.unpaid)">
+        <div class="member-result-card mb-sm" data-member-id="{{ m.member_id }}" data-member-name="{{ m.name|e }}" data-total-due="{{ m.total_due|default(0)|int }}" data-total-paid="{{ m.total_paid_combined|default(0)|int }}" data-unpaid="{{ m.unpaid|default(0)|int }}">
           <div class="flex items-center justify-between mb-sm">
             <span class="name">{{ m.name }}</span>
             <span class="material-symbols-outlined" style="color: var(--on-surface-variant);">chevron_right</span>
@@ -405,8 +405,55 @@
 
 {% block scripts %}
 <script>
-  let members = {{ members_json|default('[]')|safe }};
-  let membersWithDebt = {{ members_with_debt_json|default('[]')|safe }};
+  let members = {{ members|tojson }};
+  let membersWithDebt = {{ members_with_debt|tojson }};
+
+  // ════════════════════════════════════════
+  // Debtor list — event delegation
+  // ════════════════════════════════════════
+  document.addEventListener('DOMContentLoaded', function () {
+    const debtorList = document.getElementById('debtorList');
+    if (debtorList) {
+      debtorList.addEventListener('click', function (e) {
+        const card = e.target.closest('.member-result-card');
+        if (!card) return;
+        const mId = card.dataset.memberId;
+        const mName = card.dataset.memberName;
+        const d = parseFloat(card.dataset.totalDue) || 0;
+        const p = parseFloat(card.dataset.totalPaid) || 0;
+        const u = parseFloat(card.dataset.unpaid) || 0;
+        openPaymentSheet(mId, mName, d, p, u);
+      });
+    }
+    // Search results (dynamically inserted)
+    const memberResult = document.getElementById('memberResult');
+    if (memberResult) {
+      memberResult.addEventListener('click', function (e) {
+        const card = e.target.closest('.member-result-card');
+        if (!card) return;
+        const mId = card.dataset.memberId;
+        const mName = card.dataset.memberName;
+        const d = parseFloat(card.dataset.totalDue) || 0;
+        const p = parseFloat(card.dataset.totalPaid) || 0;
+        const u = parseFloat(card.dataset.unpaid) || 0;
+        openPaymentSheet(mId, mName, d, p, u);
+      });
+    }
+    // Search dropdown results
+    const searchResults = document.getElementById('searchResults');
+    if (searchResults) {
+      searchResults.addEventListener('click', function (e) {
+        const item = e.target.closest('[data-member-id]');
+        if (!item) return;
+        const mId = item.dataset.memberId;
+        const mName = item.dataset.memberName;
+        const d = parseFloat(item.dataset.totalDue) || 0;
+        const p = parseFloat(item.dataset.totalPaid) || 0;
+        const u = parseFloat(item.dataset.unpaid) || 0;
+        showMemberResult({member_id: parseInt(mId), name: mName, total_due: d, total_paid: p, unpaid: u});
+      });
+    }
+  });
 
   // ════════════════════════════════════════
   // Member Search
@@ -448,7 +495,7 @@
 
       resultsDiv.innerHTML = matches.map(m =>
         `<div class="font-body-sm" style="color: #ffffff; padding: 0.5rem 0; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.1);"
-              onclick="showMemberResult({member_id:${m.member_id}, name:'${m.name.replace(/'/g, "\\'")}', total_due:${m.total_due||0}, total_paid:${m.total_paid||0}, unpaid:${m.unpaid||0}})"
+              data-member-id="${m.member_id}" data-member-name="${(m.name||'').replace(/'/g, '\\u0027').replace(/"/g, '\\u0022')}" data-total-due="${m.total_due||0}" data-total-paid="${m.total_paid||0}" data-unpaid="${m.unpaid||0}">${m.name}</div>`
       ).join('');
       resultsDiv.style.display = 'block';
       memberDiv.style.display = 'none';
@@ -459,7 +506,7 @@
     const div = document.getElementById('memberResult');
     div.style.display = 'block';
     div.innerHTML = `
-      <div class="member-result-card" onclick="openPaymentSheet(${member.member_id}, '${member.name.replace(/'/g, "\\'").replace(/"/g, "&quot;")}', ${member.total_due||0}, ${member.total_paid||0}, ${member.unpaid||0})">
+      <div class="member-result-card" data-member-id="${member.member_id}" data-member-name="${member.name.replace(/'/g, '\\u0027').replace(/"/g, '\\u0022')}" data-total-due="${member.total_due||0}" data-total-paid="${member.total_paid||0}" data-unpaid="${member.unpaid||0}">
         <div class="flex items-center justify-between mb-sm">
           <span class="name">${member.name}</span>
           <span class="material-symbols-outlined" style="color: var(--on-surface-variant);">chevron_right</span>
