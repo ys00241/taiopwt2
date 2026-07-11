@@ -14,8 +14,8 @@ def view_pl():
     from app.models.pl import PL
     from app.models.edition import Edition
     from app.models.this_year_item import ThisYearItem
-    from app.models.bid import Bid
     from app.models.live_income import LiveIncome
+    from app.models.expense import Expense
     from sqlalchemy import func
     from datetime import datetime
 
@@ -24,17 +24,19 @@ def view_pl():
     # Default to latest year
     if not year or year == 0:
         latest = db.session.query(func.max(Edition.year)).scalar()
-        year = latest or 2025
+        year = latest or datetime.now().year
 
     # ════════════════════════════════════════════════════════════
-    #  Live bidding income (real-time from this_year_items)
+    #  Bidding income — only THIS YEAR's items (no cross-year)
     # ════════════════════════════════════════════════════════════
+    # 應收 = SUM(bid_amount) for this year's items
     bidding_receivable = (
         db.session.query(func.coalesce(func.sum(ThisYearItem.bid_amount), 0))
         .filter(ThisYearItem.year == year, ThisYearItem.bid_amount > 0)
         .scalar()
     ) or 0
 
+    # 已收 = paid_amount on this year's items + live_income for this source_year
     bidding_paid_in_items = (
         db.session.query(func.coalesce(func.sum(ThisYearItem.paid_amount), 0))
         .filter(ThisYearItem.year == year, ThisYearItem.paid_amount > 0)
@@ -51,7 +53,7 @@ def view_pl():
     bidding_outstanding = bidding_receivable - bidding_received
 
     # ════════════════════════════════════════════════════════════
-    #  PL table (static imported data)
+    #  PL table (static imported data — already received cash)
     # ════════════════════════════════════════════════════════════
     income_rows = (
         PL.query.filter(PL.year == year, PL.pl_type == "收入")
@@ -64,65 +66,7 @@ def view_pl():
         .all()
     )
 
-    # Fallback: if no PL data found for this year, try to compute summary
-    # from LiveIncome, Bid, and DailyEntry tables so the view isn't blank.
-    if not income_rows and not expense_rows:
-        from types import SimpleNamespace
-        from app.models.live_income import LiveIncome
-        from app.models.daily_entry import DailyEntry
-
-        live_income_total = (
-            db.session.query(func.coalesce(func.sum(LiveIncome.amount), 0))
-            .filter(LiveIncome.year == year)
-            .scalar()
-        )
-        bid_income_total = (
-            db.session.query(func.coalesce(func.sum(Bid.bid_amount), 0))
-            .filter(Bid.year == year)
-            .scalar()
-        )
-        daily_income_total = (
-            db.session.query(func.coalesce(func.sum(DailyEntry.amount), 0))
-            .filter(DailyEntry.year == year, DailyEntry.entry_type == "income")
-            .scalar()
-        )
-        daily_expense_total = (
-            db.session.query(func.coalesce(func.sum(DailyEntry.amount), 0))
-            .filter(DailyEntry.year == year, DailyEntry.entry_type == "expense")
-            .scalar()
-        )
-
-        # Build synthetic rows for fallback display
-        income_fallback = []
-        if float(live_income_total) > 0:
-            income_fallback.append(SimpleNamespace(
-                subject="現場收款 (LiveIncome)", amount_hkd=float(live_income_total),
-                payment_method="",
-            ))
-        if float(bid_income_total) > 0:
-            income_fallback.append(SimpleNamespace(
-                subject="競投收入 (Bid)", amount_hkd=float(bid_income_total),
-                payment_method="",
-            ))
-        if float(daily_income_total) > 0:
-            income_fallback.append(SimpleNamespace(
-                subject="其他日常收入 (DailyEntry)", amount_hkd=float(daily_income_total),
-                payment_method="",
-            ))
-        expense_fallback = []
-        if float(daily_expense_total) > 0:
-            expense_fallback.append(SimpleNamespace(
-                subject=f"日常支出 (DailyEntry, {year}年)", amount_hkd=float(daily_expense_total),
-                payment_method="",
-            ))
-
-        if income_fallback:
-            income_rows = income_fallback
-        if expense_fallback:
-            expense_rows = expense_fallback
-
     # Build summary categorised by subject
-    # Income: 收入(上年) CASH/CHQ, 收入(本年) CASH/CHQ, 會費, 香油, 其他收入
     income_sections = {
         "收入(上年)": [],
         "收入(本年)": [],
@@ -147,7 +91,6 @@ def view_pl():
     for section, rows in income_sections.items():
         income_totals[section] = sum(r.amount_hkd or 0 for r in rows)
 
-    # Expense: group by subject category
     expense_sections = {}
     for row in expense_rows:
         cat = row.subject or "其他支出"
@@ -159,7 +102,7 @@ def view_pl():
     for section, rows in expense_sections.items():
         expense_totals[section] = sum(r.amount_hkd or 0 for r in rows)
 
-    # PL table subtotal
+    # PL table subtotals
     pl_total_income = sum(
         sum(r.amount_hkd or 0 for r in rows) for rows in income_sections.values()
     )
@@ -167,9 +110,26 @@ def view_pl():
         sum(r.amount_hkd or 0 for r in rows) for rows in expense_sections.values()
     )
 
-    # Year list — from actual data, not Edition table
-    # Grand total income = PL static income + bidding receivable (real)
-    total_income = pl_total_income + bidding_receivable
+    # Also add live expenses (recorded on-site)
+    live_expenses = (
+        db.session.query(func.coalesce(func.sum(Expense.amount), 0))
+        .filter(Expense.year == year, Expense.source == "live")
+        .scalar()
+    ) or 0
+    total_expense += live_expenses
+
+    # ════════════════════════════════════════════════════════════
+    #  KEY METRICS
+    # ════════════════════════════════════════════════════════════
+    # 實收 = PL table income (already cash) + 競投已收
+    actual_received = pl_total_income + bidding_received
+    # 應收(名義) = PL table income + 全部競投應收額
+    nominal_income = pl_total_income + bidding_receivable
+
+    # 實收盈虧 = 實收 - 支出 ✅ REAL
+    actual_surplus = actual_received - total_expense
+    # 應收盈虧(名義) = 應收(名義) - 支出
+    nominal_surplus = nominal_income - total_expense
 
     # Year list
     years = [
@@ -185,21 +145,8 @@ def view_pl():
             .order_by(ThisYearItem.year.desc())
             .all()
         ]
-    # Default to latest year (from PL or ThisYearItem or hardcoded)
     if not year:
         year = years[0] if years else datetime.now().year
-
-    # 應收金額: total unpaid bids for the year
-    total_unpaid = (
-        db.session.query(
-            func.coalesce(func.sum(Bid.bid_amount - Bid.paid_amount), 0)
-        )
-        .filter(
-            Bid.year == year,
-            Bid.bid_amount > Bid.paid_amount,
-        )
-        .scalar()
-    )
 
     return render_template(
         "pl/index.html",
@@ -209,15 +156,17 @@ def view_pl():
         income_totals=income_totals,
         expense_sections=expense_sections,
         expense_totals=expense_totals,
-        total_income=total_income,
         total_expense=total_expense,
-        net_profit=total_income - total_expense,
-        total_unpaid=float(total_unpaid),
-        # New bidding income data
+        pl_total_income=pl_total_income,
+        # Bidding breakdown
         bidding_receivable=bidding_receivable,
         bidding_received=bidding_received,
         bidding_outstanding=bidding_outstanding,
-        pl_total_income=pl_total_income,
+        # Real vs nominal
+        actual_received=actual_received,
+        nominal_income=nominal_income,
+        actual_surplus=actual_surplus,
+        nominal_surplus=nominal_surplus,
     )
 
 
@@ -228,9 +177,9 @@ def export_pl_excel():
     from flask import request, Response
     from app.extensions import db
     from app.models.pl import PL
-    from app.models.edition import Edition
     from app.models.this_year_item import ThisYearItem
     from app.models.live_income import LiveIncome
+    from app.models.expense import Expense
     from sqlalchemy import func
     import io
 
@@ -255,13 +204,12 @@ def export_pl_excel():
             ]
 
     from openpyxl import Workbook
-    from openpyxl.styles import Font, Alignment, Border, Side, PatternFill, numbers
+    from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 
     wb = Workbook()
     ws = wb.active
     ws.title = "損益表"
 
-    # ── Styles ──
     title_font = Font(name="Microsoft JhengHei", size=14, bold=True)
     header_font = Font(name="Microsoft JhengHei", size=11, bold=True, color="FFFFFF")
     header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
@@ -279,13 +227,11 @@ def export_pl_excel():
     )
     money_fmt = '#,##0'
 
-    # ── Title ──
     ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=1 + len(selected_years))
     title_cell = ws.cell(row=1, column=1, value="寶榮堂花炮會 — 損益表 (Profit & Loss)")
     title_cell.font = title_font
     title_cell.alignment = Alignment(horizontal="center")
 
-    # ── Headers ──
     headers = ["科目"] + [f"{y}年" for y in selected_years]
     for col_idx, header in enumerate(headers, 1):
         cell = ws.cell(row=3, column=col_idx, value=header)
@@ -294,9 +240,7 @@ def export_pl_excel():
         cell.alignment = Alignment(horizontal="center")
         cell.border = thin_border
 
-    # ── Helper: fetch totals per year per subject ──
     def get_subject_totals(pl_type):
-        """Return dict[subject] = dict[year -> amount]"""
         rows = PL.query.filter(
             PL.pl_type == pl_type,
             PL.year.in_(selected_years),
@@ -311,15 +255,37 @@ def export_pl_excel():
     income_data = get_subject_totals("收入")
     expense_data = get_subject_totals("支出")
 
-    # Add bidding income row for each year
+    # Bidding + live income per year
     bidding_income_per_year = {}
+    bidding_received_per_year = {}
     for y in selected_years:
         bid_amt = (
             db.session.query(func.coalesce(func.sum(ThisYearItem.bid_amount), 0))
             .filter(ThisYearItem.year == y, ThisYearItem.bid_amount > 0)
             .scalar()
         ) or 0
+        paid_in_items = (
+            db.session.query(func.coalesce(func.sum(ThisYearItem.paid_amount), 0))
+            .filter(ThisYearItem.year == y, ThisYearItem.paid_amount > 0)
+            .scalar()
+        ) or 0
+        live_collected = (
+            db.session.query(func.coalesce(func.sum(LiveIncome.amount), 0))
+            .filter(LiveIncome.source_year == y)
+            .scalar()
+        ) or 0
         bidding_income_per_year[y] = bid_amt
+        bidding_received_per_year[y] = paid_in_items + live_collected
+
+    # Live expenses per year
+    live_exp_per_year = {}
+    for y in selected_years:
+        le = (
+            db.session.query(func.coalesce(func.sum(Expense.amount), 0))
+            .filter(Expense.year == y, Expense.source == "live")
+            .scalar()
+        ) or 0
+        live_exp_per_year[y] = le
 
     row_num = 4
 
@@ -344,8 +310,23 @@ def export_pl_excel():
             cell.border = thin_border
         row_num += 1
 
-    # Bidding income row (live from this_year_items)
-    ws.cell(row=row_num, column=1, value="競投收入 (即時)").font = data_font
+    # PL income total
+    pl_year_totals = {}
+    for subject, yearly in income_data.items():
+        for y in selected_years:
+            pl_year_totals[y] = pl_year_totals.get(y, 0) + (yearly.get(y, 0) or 0)
+
+    ws.cell(row=row_num, column=1, value="PL收入合計 (已收)").font = data_font
+    ws.cell(row=row_num, column=1).border = thin_border
+    for ci, y in enumerate(selected_years, 2):
+        cell = ws.cell(row=row_num, column=ci, value=pl_year_totals.get(y, 0))
+        cell.font = data_font
+        cell.number_format = money_fmt
+        cell.border = thin_border
+    row_num += 1
+
+    # Bidding income row (應收)
+    ws.cell(row=row_num, column=1, value="競投應收 (即時)").font = data_font
     ws.cell(row=row_num, column=1).border = thin_border
     ws.cell(row=row_num, column=1).font.italic = True
     for ci, y in enumerate(selected_years, 2):
@@ -355,24 +336,45 @@ def export_pl_excel():
         cell.border = thin_border
     row_num += 1
 
-    # Income total row (PL + bidding)
-    income_year_totals = {}
-    for subject, yearly in income_data.items():
-        for y in selected_years:
-            income_year_totals[y] = income_year_totals.get(y, 0) + (yearly.get(y, 0) or 0)
-    for y in selected_years:
-        income_year_totals[y] = income_year_totals.get(y, 0) + bidding_income_per_year.get(y, 0)
+    # Bidding already received
+    ws.cell(row=row_num, column=1, value="  已收競投").font = data_font
+    ws.cell(row=row_num, column=1).border = thin_border
+    for ci, y in enumerate(selected_years, 2):
+        cell = ws.cell(row=row_num, column=ci, value=bidding_received_per_year.get(y, 0))
+        cell.font = data_font
+        cell.number_format = money_fmt
+        cell.border = thin_border
+    row_num += 1
 
-    ws.cell(row=row_num, column=1, value="收入合計").font = total_font
+    # Actual total received
+    actual_received_totals = {}
+    for y in selected_years:
+        actual_received_totals[y] = pl_year_totals.get(y, 0) + bidding_received_per_year.get(y, 0)
+
+    ws.cell(row=row_num, column=1, value="實收合計 (PL已收 + 競投已收)").font = total_font
     ws.cell(row=row_num, column=1).fill = total_fill
     ws.cell(row=row_num, column=1).border = thin_border
     for ci, y in enumerate(selected_years, 2):
-        cell = ws.cell(row=row_num, column=ci, value=income_year_totals.get(y, 0))
+        cell = ws.cell(row=row_num, column=ci, value=actual_received_totals.get(y, 0))
         cell.font = total_font
         cell.fill = total_fill
         cell.number_format = money_fmt
         cell.border = thin_border
-    row_num += 2  # blank row
+    row_num += 1
+
+    # Nominal total (PL + all bidding receivable)
+    nominal_totals = {}
+    for y in selected_years:
+        nominal_totals[y] = pl_year_totals.get(y, 0) + bidding_income_per_year.get(y, 0)
+
+    ws.cell(row=row_num, column=1, value="應收總計 (名義: PL + 競投應收)").font = total_font
+    ws.cell(row=row_num, column=1).border = thin_border
+    for ci, y in enumerate(selected_years, 2):
+        cell = ws.cell(row=row_num, column=ci, value=nominal_totals.get(y, 0))
+        cell.font = total_font
+        cell.number_format = money_fmt
+        cell.border = thin_border
+    row_num += 2
 
     # ── Expense Section ──
     ws.merge_cells(start_row=row_num, start_column=1, end_row=row_num, end_column=1 + len(selected_years))
@@ -395,11 +397,23 @@ def export_pl_excel():
             cell.border = thin_border
         row_num += 1
 
-    # Expense total row
+    # Live expenses row
+    ws.cell(row=row_num, column=1, value="現場支出 (Live)").font = data_font
+    ws.cell(row=row_num, column=1).border = thin_border
+    for ci, y in enumerate(selected_years, 2):
+        cell = ws.cell(row=row_num, column=ci, value=live_exp_per_year.get(y, 0))
+        cell.font = data_font
+        cell.number_format = money_fmt
+        cell.border = thin_border
+    row_num += 1
+
+    # Total expense (PL + live)
     expense_year_totals = {}
     for subject, yearly in expense_data.items():
         for y in selected_years:
             expense_year_totals[y] = expense_year_totals.get(y, 0) + (yearly.get(y, 0) or 0)
+    for y in selected_years:
+        expense_year_totals[y] = expense_year_totals.get(y, 0) + live_exp_per_year.get(y, 0)
 
     ws.cell(row=row_num, column=1, value="支出合計").font = total_font
     ws.cell(row=row_num, column=1).fill = total_fill
@@ -412,12 +426,13 @@ def export_pl_excel():
         cell.border = thin_border
     row_num += 1
 
-    # ── Net Profit ──
-    ws.cell(row=row_num, column=1, value="盈虧 (淨收入)").font = total_font
+    # ── Surplus ──
+    # Actual surplus
+    ws.cell(row=row_num, column=1, value="實收盈虧 (實收 - 支出)").font = total_font
     ws.cell(row=row_num, column=1).fill = total_fill
     ws.cell(row=row_num, column=1).border = thin_border
     for ci, y in enumerate(selected_years, 2):
-        net = (income_year_totals.get(y, 0) or 0) - (expense_year_totals.get(y, 0) or 0)
+        net = actual_received_totals.get(y, 0) - expense_year_totals.get(y, 0)
         cell = ws.cell(row=row_num, column=ci, value=net)
         cell.font = total_font
         cell.fill = total_fill
@@ -425,8 +440,18 @@ def export_pl_excel():
         cell.border = thin_border
     row_num += 1
 
-    # Column widths
-    ws.column_dimensions["A"].width = 30
+    # Nominal surplus
+    ws.cell(row=row_num, column=1, value="應收盈虧 (名義: 應收 - 支出)").font = total_font
+    ws.cell(row=row_num, column=1).border = thin_border
+    for ci, y in enumerate(selected_years, 2):
+        net = nominal_totals.get(y, 0) - expense_year_totals.get(y, 0)
+        cell = ws.cell(row=row_num, column=ci, value=net)
+        cell.font = total_font
+        cell.number_format = money_fmt
+        cell.border = thin_border
+    row_num += 1
+
+    ws.column_dimensions["A"].width = 35
     for ci in range(2, 2 + len(selected_years)):
         ws.column_dimensions[chr(64 + ci)].width = 18
 
