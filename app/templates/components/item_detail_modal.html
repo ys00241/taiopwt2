@@ -126,31 +126,45 @@ function openItemDetail(itemId) {
   modal.classList.add('open');
   document.body.style.overflow = 'hidden';
 
+  var fetchTimeout = setTimeout(function() {
+    console.error('Item detail fetch timed out after 8s');
+    if (loading) loading.style.display = 'none';
+    if (content) content.style.display = 'block';
+    var el;
+    if ((el = document.getElementById('detailItemName'))) el.textContent = '載入失敗';
+    if ((el = document.getElementById('detailModalSubtitle'))) el.textContent = '請求超時，請重試';
+  }, 8000);
+
   fetch('/pre/api/item-detail/' + itemId)
-    .then(function (r) { return r.json(); })
+    .then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
     .then(function (data) {
+      clearTimeout(fetchTimeout);
       if (loading) loading.style.display = 'none';
       if (content) content.style.display = 'block';
 
       // Populate fields
       var stickerStr = data.sticker_no ? String(data.sticker_no) : '--';
-      document.getElementById('detailStickerBadge').textContent = stickerStr;
-      document.getElementById('detailItemName').textContent = data.item_name || '—';
-      document.getElementById('detailActualItem').textContent = data.actual_item || '—';
-      document.getElementById('detailCategory').textContent = data.category || '—';
-      document.getElementById('detailCost').textContent = '$' + (data.cost || 0).toLocaleString();
-      document.getElementById('detailSource').textContent = data.source || '—';
-      document.getElementById('detailModalTitle').textContent = '聖物 #' + stickerStr;
-      document.getElementById('detailModalSubtitle').textContent = data.item_name || '';
+      var el;
+      if ((el = document.getElementById('detailStickerBadge'))) el.textContent = stickerStr;
+      if ((el = document.getElementById('detailItemName'))) el.textContent = data.item_name || '—';
+      if ((el = document.getElementById('detailActualItem'))) el.textContent = data.actual_item || '—';
+      if ((el = document.getElementById('detailCategory'))) el.textContent = data.category || '—';
+      if ((el = document.getElementById('detailCost'))) el.textContent = '$' + (data.cost || 0).toLocaleString();
+      if ((el = document.getElementById('detailSource'))) el.textContent = data.source || '—';
+      if ((el = document.getElementById('detailModalTitle'))) el.textContent = '聖物 #' + stickerStr;
+      if ((el = document.getElementById('detailModalSubtitle'))) el.textContent = data.item_name || '';
 
       // Notes
       var notesRow = document.getElementById('detailNotesRow');
       var notesEl = document.getElementById('detailNotes');
       if (data.notes && data.notes.trim()) {
-        notesRow.style.display = 'block';
-        notesEl.textContent = data.notes;
+        if (notesRow) notesRow.style.display = 'block';
+        if (notesEl) notesEl.textContent = data.notes;
       } else {
-        notesRow.style.display = 'none';
+        if (notesRow) notesRow.style.display = 'none';
       }
 
       // Bid status
@@ -158,15 +172,15 @@ function openItemDetail(itemId) {
       var notWonSection = document.getElementById('detailNotWonSection');
 
       if (data.is_won) {
-        wonSection.style.display = 'block';
-        notWonSection.style.display = 'none';
-        document.getElementById('detailBidderName').textContent = data.bidder_name || '—';
-        document.getElementById('detailBidAmount').textContent = '$' + (data.bid_amount || 0).toLocaleString();
-        document.getElementById('detailPaidAmount').textContent = data.paid_amount > 0 ? '$' + data.paid_amount.toLocaleString() : '未付款';
-        document.getElementById('detailPaymentMethod').textContent = data.payment_method || '—';
+        if (wonSection) wonSection.style.display = 'block';
+        if (notWonSection) notWonSection.style.display = 'none';
+        if ((el = document.getElementById('detailBidderName'))) el.textContent = data.bidder_name || '—';
+        if ((el = document.getElementById('detailBidAmount'))) el.textContent = '$' + (data.bid_amount || 0).toLocaleString();
+        if ((el = document.getElementById('detailPaidAmount'))) el.textContent = data.paid_amount > 0 ? '$' + data.paid_amount.toLocaleString() : '未付款';
+        if ((el = document.getElementById('detailPaymentMethod'))) el.textContent = data.payment_method || '—';
       } else {
-        wonSection.style.display = 'none';
-        notWonSection.style.display = 'block';
+        if (wonSection) wonSection.style.display = 'none';
+        if (notWonSection) notWonSection.style.display = 'block';
       }
 
       // If API returned bid history, show it
@@ -176,11 +190,13 @@ function openItemDetail(itemId) {
       }
     })
     .catch(function (err) {
-      console.error('Item detail fetch error:', err);
+      clearTimeout(fetchTimeout);
+      console.error('Item detail fetch error:', err.message);
       if (loading) loading.style.display = 'none';
       if (content) content.style.display = 'block';
-      document.getElementById('detailItemName').textContent = '載入失敗';
-      document.getElementById('detailModalSubtitle').textContent = '無法獲取聖物詳情';
+      var el;
+      if ((el = document.getElementById('detailItemName'))) el.textContent = '載入失敗: ' + err.message;
+      if ((el = document.getElementById('detailModalSubtitle'))) el.textContent = '請檢查網絡後重試';
     });
 }
 
@@ -203,58 +219,71 @@ function openItemDetailFromDb(itemId) {
   modal.classList.add('open');
   document.body.style.overflow = 'hidden';
 
+  var fetchTimeout = setTimeout(function() {
+    console.error('Item detail fetch timed out after 8s');
+    if (loading) loading.style.display = 'none';
+    if (content) content.style.display = 'block';
+    document.getElementById('detailItemName').textContent = '載入失敗';
+    document.getElementById('detailModalSubtitle').textContent = '請求超時，請重試';
+  }, 8000);
+
   fetch('/pre/api/items/' + itemId + '/detail')
-    .then(function (r) { return r.json(); })
+    .then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
     .then(function (data) {
+      clearTimeout(fetchTimeout);
       if (loading) loading.style.display = 'none';
       if (content) content.style.display = 'block';
 
       var stickerStr = data.sticker_no ? String(data.sticker_no) : '--';
-      document.getElementById('detailStickerBadge').textContent = stickerStr;
-      document.getElementById('detailItemName').textContent = data.item_name || '—';
-      document.getElementById('detailActualItem').textContent = data.actual_item || '—';
-      document.getElementById('detailCategory').textContent = data.category || '—';
-      document.getElementById('detailCost').textContent = '$' + (data.cost || 0).toLocaleString();
-      document.getElementById('detailSource').textContent = data.source || '—';
-      document.getElementById('detailModalTitle').textContent = '聖物 #' + stickerStr;
-      document.getElementById('detailModalSubtitle').textContent = data.item_name || '';
+      var el;
+      if ((el = document.getElementById('detailStickerBadge'))) el.textContent = stickerStr;
+      if ((el = document.getElementById('detailItemName'))) el.textContent = data.item_name || '—';
+      if ((el = document.getElementById('detailActualItem'))) el.textContent = data.actual_item || '—';
+      if ((el = document.getElementById('detailCategory'))) el.textContent = data.category || '—';
+      if ((el = document.getElementById('detailCost'))) el.textContent = '$' + (data.cost || 0).toLocaleString();
+      if ((el = document.getElementById('detailSource'))) el.textContent = data.source || '—';
+      if ((el = document.getElementById('detailModalTitle'))) el.textContent = '聖物 #' + stickerStr;
+      if ((el = document.getElementById('detailModalSubtitle'))) el.textContent = data.item_name || '';
 
       var notesRow = document.getElementById('detailNotesRow');
       var notesEl = document.getElementById('detailNotes');
       if (data.notes && data.notes.trim()) {
-        notesRow.style.display = 'block';
-        notesEl.textContent = data.notes;
+        if (notesRow) notesRow.style.display = 'block';
+        if (notesEl) notesEl.textContent = data.notes;
       } else {
-        notesRow.style.display = 'none';
+        if (notesRow) notesRow.style.display = 'none';
       }
 
       var wonSection = document.getElementById('detailWonSection');
       var notWonSection = document.getElementById('detailNotWonSection');
 
       if (data.is_won) {
-        wonSection.style.display = 'block';
-        notWonSection.style.display = 'none';
-        document.getElementById('detailBidderName').textContent = data.bidder_name || '—';
-        document.getElementById('detailBidAmount').textContent = '$' + (data.bid_amount || 0).toLocaleString();
-        document.getElementById('detailPaidAmount').textContent = data.paid_amount > 0 ? '$' + data.paid_amount.toLocaleString() : '未付款';
-        document.getElementById('detailPaymentMethod').textContent = data.payment_method || '—';
+        if (wonSection) wonSection.style.display = 'block';
+        if (notWonSection) notWonSection.style.display = 'none';
+        if ((el = document.getElementById('detailBidderName'))) el.textContent = data.bidder_name || '—';
+        if ((el = document.getElementById('detailBidAmount'))) el.textContent = '$' + (data.bid_amount || 0).toLocaleString();
+        if ((el = document.getElementById('detailPaidAmount'))) el.textContent = data.paid_amount > 0 ? '$' + data.paid_amount.toLocaleString() : '未付款';
+        if ((el = document.getElementById('detailPaymentMethod'))) el.textContent = data.payment_method || '—';
       } else {
-        wonSection.style.display = 'none';
-        notWonSection.style.display = 'block';
+        if (wonSection) wonSection.style.display = 'none';
+        if (notWonSection) notWonSection.style.display = 'block';
       }
 
-      // Show bid history if available
       if (data.bids && data.bids.length > 0 && bidHistSection) {
         renderBidHistory(data.bids);
         bidHistSection.style.display = 'block';
       }
     })
     .catch(function (err) {
-      console.error('Item detail fetch error:', err);
+      clearTimeout(fetchTimeout);
+      console.error('Item detail fetch error:', err.message);
       if (loading) loading.style.display = 'none';
       if (content) content.style.display = 'block';
-      document.getElementById('detailItemName').textContent = '載入失敗';
-      document.getElementById('detailModalSubtitle').textContent = '無法獲取聖物詳情';
+      if ((el = document.getElementById('detailItemName'))) el.textContent = '載入失敗: ' + err.message;
+      if ((el = document.getElementById('detailModalSubtitle'))) el.textContent = '請檢查網絡後重試';
     });
 }
 
