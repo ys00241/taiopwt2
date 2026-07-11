@@ -152,8 +152,10 @@ def live_bidding_record():
 @login_required
 def live_payments():
     """收款台 — Search members, show debt + recent payments."""
-    year = request.args.get("year", datetime.now().strftime("%Y"))
-    int_year = int(year)
+    year = request.args.get("year", type=int)
+    if not year:
+        year = datetime.now().year
+    int_year = year
     source_year = request.args.get("sy", "").strip()
     search = request.args.get("q", "").strip()
     int_source_year = int(source_year) if source_year else None
