@@ -104,7 +104,7 @@
 
   <!-- ═══ One-click payment button ═══ -->
   <div class="flex justify-end mb-lg">
-    <button class="btn-primary" onclick="openPaymentSheet({{ member.member_id }}, {{ member.name|tojson }}, {{ total[0]|int }}, {{ total[1]|int }}, {{ balance if balance > 0 else 0 }})" style="border: none; cursor: pointer;">
+    <button class="btn-primary payment-trigger" data-member-id="{{ member.member_id }}" data-member-name="{{ member.name }}" data-total-due="{{ total[0]|int }}" data-total-paid="{{ total[1]|int }}" data-balance="{{ balance if balance > 0 else 0 }}" style="border: none; cursor: pointer;">
       <span class="material-symbols-outlined" style="font-size: 1.125rem;">payments</span>
       一鍵繳款
     </button>
@@ -171,7 +171,7 @@
           <td style="text-align: right;">
             {% set b_unpaid = b.bid_amount - b.paid_amount %}
             {% if b_unpaid > 0 %}
-            <a href="#" onclick="event.preventDefault(); openPaymentSheet({{ member.member_id }}, {{ member.name|tojson }}, {{ total[0]|int }}, {{ total[1]|int }}, {{ balance if balance > 0 else 0 }});" style="color: var(--tertiary); font-weight: 600; text-decoration: none;">${{ b_unpaid|int }}</a>
+            <span class="payment-trigger" data-member-id="{{ member.member_id }}" data-member-name="{{ member.name }}" data-total-due="{{ total[0]|int }}" data-total-paid="{{ total[1]|int }}" data-balance="{{ balance if balance > 0 else 0 }}" style="color: var(--tertiary); font-weight: 600; cursor: pointer;">${{ b_unpaid|int }}</span>
             {% else %}
             <span style="color: var(--on-surface-variant);">$0</span>
             {% endif %}
@@ -677,8 +677,19 @@ function closePaymentSheet() {
   if (first) first.classList.add('active');
 }
 
-// AJAX submit
+// AJAX submit + payment trigger delegation
 document.addEventListener('DOMContentLoaded', function() {
+  // Payment trigger delegation (一鍵繳款, 欠款, 未繳)
+  document.body.addEventListener('click', function(e) {
+    const trigger = e.target.closest('.payment-trigger');
+    if (!trigger) return;
+    const mid = trigger.dataset.memberId;
+    const mname = trigger.dataset.memberName;
+    const due = parseFloat(trigger.dataset.totalDue) || 0;
+    const paid = parseFloat(trigger.dataset.totalPaid) || 0;
+    const bal = parseFloat(trigger.dataset.balance) || 0;
+    openPaymentSheet(mid, mname, due, paid, bal);
+  });
   const form = document.getElementById('paymentForm');
   if (form) {
     form.addEventListener('submit', async function(e) {
