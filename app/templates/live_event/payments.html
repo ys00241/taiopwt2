@@ -358,40 +358,59 @@
       <input type="hidden" name="member_name" id="payMemberName" value="">
       <input type="hidden" name="year" value="{{ year }}">
       <input type="hidden" name="source_year" value="{{ source_year or (year - 1) }}">
+      <input type="hidden" name="bid_ids" id="payBidIds" value="">
 
-      <!-- Amount (huge input) -->
+      <!-- Item list with checkboxes -->
+      <div id="payItemList" class="space-y-xs mb-md">
+        <div class="text-center py-md" style="color: var(--on-surface-variant);">
+          <span class="material-symbols-outlined" style="font-size: 1.5rem;">hourglass_empty</span>
+          <p class="font-body-sm mt-xs">載入欠款明細...</p>
+        </div>
+      </div>
+
+      <!-- Select All / Clear -->
+      <div class="flex items-center gap-sm mb-md">
+        <button type="button" class="btn-secondary" onclick="selectAllItems(true)" style="font-size:0.75rem; padding:0.375rem 0.75rem;">全選</button>
+        <button type="button" class="btn-secondary" onclick="selectAllItems(false)" style="font-size:0.75rem; padding:0.375rem 0.75rem;">取消</button>
+        <span class="font-body-sm" style="color:var(--on-surface-variant);" id="paySelectedCount">已選 0 項</span>
+      </div>
+
+      <!-- Amount -->
       <div class="mb-md">
         <label class="form-label">收款金額</label>
         <input type="number" class="pay-amount-input" id="payAmount" name="amount" required min="0" step="0.01" placeholder="$0" inputmode="decimal">
       </div>
 
-      <!-- Payment method (big buttons) -->
+      <!-- Payment method -->
       <div class="mb-md">
         <label class="form-label">付款方式</label>
         <div class="pay-method-grid" id="payMethodGrid">
           <button type="button" class="pay-method-btn active" data-value="CASH" onclick="selectPayMethod(this)">
-            <span class="material-symbols-outlined">payments</span>
-            現金
+            <span class="material-symbols-outlined">payments</span> 現金
           </button>
           <button type="button" class="pay-method-btn" data-value="CHQ" onclick="selectPayMethod(this)">
-            <span class="material-symbols-outlined">request_quote</span>
-            支票
+            <span class="material-symbols-outlined">request_quote</span> 支票
           </button>
           <button type="button" class="pay-method-btn" data-value="轉數快" onclick="selectPayMethod(this)">
-            <span class="material-symbols-outlined">phone_iphone</span>
-            轉數快
+            <span class="material-symbols-outlined">phone_iphone</span> 轉數快
           </button>
         </div>
         <input type="hidden" name="payment_method" id="payMethod" value="CASH">
       </div>
 
       <!-- Handler -->
-      <div class="mb-lg">
+      <div class="mb-md">
         <label class="form-label">經手人</label>
         <select class="form-input" name="handler">
           <option value="管理員">管理員</option>
           <option value="工作人員">工作人員</option>
         </select>
+      </div>
+
+      <!-- Remarks -->
+      <div class="mb-lg">
+        <label class="form-label">備註 Remarks</label>
+        <input type="text" class="form-input" name="remarks" id="payRemarks" placeholder="輸入備註..." maxlength="500">
       </div>
 
       <button type="submit" class="btn-pay-confirm">
@@ -532,8 +551,10 @@
   }
 
   // ════════════════════════════════════════
-  // Payment Sheet
+  // Payment Sheet — with item-level checkboxes
   // ════════════════════════════════════════
+  let payItems = []; // current member's unpaid items
+
   function openPaymentSheet(memberId, memberName, totalDue, totalPaid, unpaid) {
     document.getElementById('payMemberId').value = memberId;
     document.getElementById('payMemberName').value = memberName;
@@ -542,11 +563,66 @@
     document.getElementById('payTotalDue').textContent = `$${totalDue}`;
     document.getElementById('payTotalPaid').textContent = `$${totalPaid}`;
     document.getElementById('payUnpaid').textContent = `$${unpaid}`;
-    document.getElementById('payAmount').value = unpaid > 0 ? unpaid : '';
+    document.getElementById('payAmount').value = '';
+    document.getElementById('payBidIds').value = '';
     document.getElementById('paymentSheet').classList.add('open');
     document.body.style.overflow = 'hidden';
+
+    // Fetch item-level debt details
+    const itemList = document.getElementById('payItemList');
+    itemList.innerHTML = '<div class="text-center py-md" style="color: var(--on-surface-variant);"><span class="material-symbols-outlined" style="font-size: 1.5rem;">hourglass_empty</span><p class="font-body-sm mt-xs">載入欠款明細...</p></div>';
+
+    fetch('/live/payments/debt-details/' + memberId)
+      .then(r => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(data => {
+        if (!data || data.length === 0) {
+          itemList.innerHTML = '<div class="text-center py-md" style="color: var(--on-surface-variant);"><span class="material-symbols-outlined" style="font-size: 1.5rem;">check_circle</span><p class="font-body-sm mt-xs">沒有欠款</p></div>';
+          document.getElementById('payAmount').value = 0;
+          updatePayConfirmAmount();
+          return;
+        }
+        payItems = data;
+        renderItemCheckboxes();
+        selectAllItems(true);
+      })
+      .catch(err => {
+        itemList.innerHTML = '<div class="text-center py-md" style="color: var(--tertiary);"><span class="material-symbols-outlined" style="font-size: 1.5rem;">error</span><p class="font-body-sm mt-xs">載入失敗: ' + err.message + '</p></div>';
+      });
+
     updatePayConfirmAmount();
     document.getElementById('payAmount').focus();
+  }
+
+  function renderItemCheckboxes() {
+    const itemList = document.getElementById('payItemList');
+    itemList.innerHTML = payItems.map((item, idx) =>
+      `<label class="flex items-center gap-sm py-xs px-sm pay-item-row" style="border-radius: 8px; cursor: pointer; background: var(--surface-container); display: flex;">
+        <input type="checkbox" class="pay-item-cb" data-idx="${idx}" data-bid-id="${item.bid_id}" data-amount="${item.unpaid}" checked onchange="onItemCheckChange()" style="width: 18px; height: 18px; accent-color: #166534;">
+        <div class="flex-1 min-w-0">
+          <div class="font-body-md" style="font-weight: 500;">${item.item_name}</div>
+          <div class="font-body-sm" style="color: var(--on-surface-variant);">${item.year}年</div>
+        </div>
+        <div class="font-headline-sm" style="color: var(--tertiary);">$${item.unpaid.toLocaleString()}</div>
+      </label>`
+    ).join('');
+  }
+
+  function onItemCheckChange() {
+    const cbs = document.querySelectorAll('.pay-item-cb:checked');
+    const total = Array.from(cbs).reduce((sum, cb) => sum + (parseFloat(cb.dataset.amount) || 0), 0);
+    const ids = Array.from(cbs).map(cb => cb.dataset.bidId).join(',');
+    document.getElementById('payAmount').value = total || '';
+    document.getElementById('payBidIds').value = ids;
+    document.getElementById('paySelectedCount').textContent = `已選 ${cbs.length} 項`;
+    updatePayConfirmAmount();
+  }
+
+  function selectAllItems(select) {
+    document.querySelectorAll('.pay-item-cb').forEach(cb => cb.checked = select);
+    onItemCheckChange();
   }
 
   function closePaymentSheet() {
@@ -555,6 +631,7 @@
     document.getElementById('paymentForm').reset();
     document.getElementById('payMemberId').value = '';
     document.getElementById('payMemberName').value = '';
+    document.getElementById('payBidIds').value = '';
     document.getElementById('payMethod').value = 'CASH';
     document.querySelectorAll('.pay-method-btn').forEach(b => b.classList.remove('active'));
     document.querySelector('.pay-method-btn[data-value="CASH"]').classList.add('active');

@@ -400,17 +400,32 @@ def live_payments_pay():
     )
     db.session.add(income)
 
-    # Distribute payment across unpaid bids (FIFO: oldest bid_no first)
-    unpaid_bids = (
-        Bid.query
-        .filter(
-            Bid.member_id == member_id,
-            Bid.year == source_year,
-            Bid.bid_amount > Bid.paid_amount,
+    # If specific bid_ids provided, only pay those
+    bid_ids_param = request.form.get("bid_ids", "").strip()
+    if bid_ids_param:
+        selected_ids = [int(x) for x in bid_ids_param.split(",") if x.strip()]
+        unpaid_bids = (
+            Bid.query
+            .filter(
+                Bid.id.in_(selected_ids),
+                Bid.member_id == member_id,
+                Bid.bid_amount > Bid.paid_amount,
+            )
+            .order_by(Bid.bid_no)
+            .all()
         )
-        .order_by(Bid.bid_no)
-        .all()
-    )
+    else:
+        # FIFO: all unpaid bids for this member/year
+        unpaid_bids = (
+            Bid.query
+            .filter(
+                Bid.member_id == member_id,
+                Bid.year == source_year,
+                Bid.bid_amount > Bid.paid_amount,
+            )
+            .order_by(Bid.bid_no)
+            .all()
+        )
 
     remaining = amount
     for bid in unpaid_bids:
@@ -440,9 +455,7 @@ def live_payments_debt_details(member_id):
     """Return JSON list of unpaid bids for a member (debt breakdown by year/item)."""
     unpaid_bids = (
         db.session.query(
-            Bid.year,
-            Bid.bid_amount,
-            Bid.paid_amount,
+            Bid,
             Item.name_1_auspicious,
             Item.name_2_description,
         )
@@ -459,6 +472,7 @@ def live_payments_debt_details(member_id):
     for row in unpaid_bids:
         item_name = row.name_1_auspicious or row.name_2_description or "—"
         items.append({
+            "bid_id": row.Bid.id,
             "year": row.year,
             "item_name": item_name,
             "bid_amount": row.bid_amount,
