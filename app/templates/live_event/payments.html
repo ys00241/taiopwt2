@@ -357,7 +357,7 @@
       <input type="hidden" name="member_id" id="payMemberId" value="">
       <input type="hidden" name="member_name" id="payMemberName" value="">
       <input type="hidden" name="year" value="{{ year }}">
-      <input type="hidden" name="source_year" value="{{ source_year }}">
+      <input type="hidden" name="source_year" value="{{ source_year or (year - 1) }}">
 
       <!-- Amount (huge input) -->
       <div class="mb-md">

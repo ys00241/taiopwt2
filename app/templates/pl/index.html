@@ -226,5 +226,43 @@
     </div>
   </div>
 
+  <!-- ═══ Multi-Year Comparison ═══ -->
+  <div class="imperial-card mt-lg">
+    <div class="flex items-center gap-sm mb-md">
+      <span class="material-symbols-outlined" style="color: var(--primary); font-size: 1.5rem;">calendar_month</span>
+      <h2 class="font-headline-md" style="color: var(--on-surface);">跨年比較 Multi-Year Comparison</h2>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full" style="border-collapse: collapse;">
+        <thead>
+          <tr style="border-bottom: 2px solid var(--outline-variant);">
+            <th class="text-left py-sm px-sm font-label-md" style="color: var(--on-surface-variant);">年份</th>
+            <th class="text-right py-sm px-sm font-label-md" style="color: var(--on-surface-variant);">收入</th>
+            <th class="text-right py-sm px-sm font-label-md" style="color: var(--on-surface-variant);">競投應收</th>
+            <th class="text-right py-sm px-sm font-label-md" style="color: var(--on-surface-variant);">實收總計</th>
+            <th class="text-right py-sm px-sm font-label-md" style="color: var(--on-surface-variant);">支出總計</th>
+            <th class="text-right py-sm px-sm font-label-md" style="color: var(--on-surface-variant);">實收盈虧</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for y in years|sort(True) %}
+          {% set md = multi_year_data.get(y, {}) %}
+          <tr style="border-bottom: 1px solid var(--outline-variant);{% if y == year %} background: var(--surface-container);{% endif %}">
+            <td class="py-sm px-sm font-body-md" style="font-weight: 600;{% if y == year %} color: var(--primary);{% endif %}">{{ y }}年</td>
+            <td class="py-sm px-sm font-body-md text-right">${{ (md.pl_total_income or 0)|int }}</td>
+            <td class="py-sm px-sm font-body-md text-right">${{ (md.bidding_receivable or 0)|int }}</td>
+            <td class="py-sm px-sm font-body-md text-right">${{ (md.actual_received or 0)|int }}</td>
+            <td class="py-sm px-sm font-body-md text-right">${{ (md.total_expense or 0)|int }}</td>
+            <td class="py-sm px-sm font-body-md text-right" style="color: {% if md.actual_surplus >= 0 %}#166534{% else %}var(--tertiary){% endif %}; font-weight: 600;">
+              {% if md.actual_surplus >= 0 %}+{% endif %}${{ (md.actual_surplus or 0)|int }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
 </div>
 {% endblock %}

@@ -351,7 +351,7 @@
     if (searchInput) {
       searchInput.addEventListener('keydown', function (e) {
         if (e.key === 'Enter') {
-          const q = encodeURIComponent(this.value.trim());
+          const q = this.value.trim();
           const url = new URL(window.location.href);
           if (q) url.searchParams.set('q', q);
           else url.searchParams.delete('q');

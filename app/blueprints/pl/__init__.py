@@ -16,6 +16,7 @@ def view_pl():
     from app.models.this_year_item import ThisYearItem
     from app.models.live_income import LiveIncome
     from app.models.expense import Expense
+    from app.models.daily_entry import DailyEntry
     from sqlalchemy import func
     from datetime import datetime
 
@@ -87,6 +88,35 @@ def view_pl():
         else:
             income_sections["其他收入"].append(row)
 
+    # ════════════════════════════════════════════════════════════
+    #  DailyEntry records — 現金收支日記帳
+    # ════════════════════════════════════════════════════════════
+    daily_income_rows = (
+        DailyEntry.query.filter(
+            DailyEntry.year == year,
+            DailyEntry.entry_type == "income",
+        )
+        .order_by(DailyEntry.entry_date.desc())
+        .all()
+    )
+    daily_expense_rows = (
+        DailyEntry.query.filter(
+            DailyEntry.year == year,
+            DailyEntry.entry_type == "expense",
+        )
+        .order_by(DailyEntry.entry_date.desc())
+        .all()
+    )
+
+    # Normalise column name for Jinja2 template (DailyEntry uses 'amount', PL uses 'amount_hkd')
+    for row in daily_income_rows:
+        row.amount_hkd = row.amount
+    for row in daily_expense_rows:
+        row.amount_hkd = row.amount
+
+    if daily_income_rows:
+        income_sections["日常收入 (現金)"] = daily_income_rows
+
     income_totals = {}
     for section, rows in income_sections.items():
         income_totals[section] = sum(r.amount_hkd or 0 for r in rows)
@@ -98,11 +128,14 @@ def view_pl():
             expense_sections[cat] = []
         expense_sections[cat].append(row)
 
+    if daily_expense_rows:
+        expense_sections["日常支出 (現金)"] = daily_expense_rows
+
     expense_totals = {}
     for section, rows in expense_sections.items():
         expense_totals[section] = sum(r.amount_hkd or 0 for r in rows)
 
-    # PL table subtotals
+    # Combined totals (PL + DailyEntry + live expenses)
     pl_total_income = sum(
         sum(r.amount_hkd or 0 for r in rows) for rows in income_sections.values()
     )
@@ -131,22 +164,83 @@ def view_pl():
     # 應收盈虧(名義) = 應收(名義) - 支出
     nominal_surplus = nominal_income - total_expense
 
-    # Year list
-    years = [
-        r[0]
-        for r in db.session.query(func.distinct(PL.year))
-        .order_by(PL.year.desc())
-        .all()
-    ]
+    # ════════════════════════════════════════════════════════════
+    #  Year list (from all data sources)
+    # ════════════════════════════════════════════════════════════
+    years_set = set()
+    for r in db.session.query(func.distinct(PL.year)).all():
+        if r[0]:
+            years_set.add(r[0])
+    for r in db.session.query(func.distinct(ThisYearItem.year)).all():
+        if r[0]:
+            years_set.add(r[0])
+    for r in db.session.query(func.distinct(DailyEntry.year)).all():
+        if r[0]:
+            years_set.add(r[0])
+    years = sorted(years_set, reverse=True)
     if not years:
-        years = [
-            r[0]
-            for r in db.session.query(func.distinct(ThisYearItem.year))
-            .order_by(ThisYearItem.year.desc())
-            .all()
-        ]
-    if not year:
-        year = years[0] if years else datetime.now().year
+        years = [datetime.now().year]
+    if year not in years:
+        year = years[0]
+
+    # ════════════════════════════════════════════════════════════
+    #  Multi-year comparison data
+    # ════════════════════════════════════════════════════════════
+    multi_year_data = {}
+    for y in years:
+        pl_inc = (
+            db.session.query(func.coalesce(func.sum(PL.amount_hkd), 0))
+            .filter(PL.year == y, PL.pl_type == "收入")
+            .scalar()
+        ) or 0
+        pl_exp = (
+            db.session.query(func.coalesce(func.sum(PL.amount_hkd), 0))
+            .filter(PL.year == y, PL.pl_type == "支出")
+            .scalar()
+        ) or 0
+        live_exp = (
+            db.session.query(func.coalesce(func.sum(Expense.amount), 0))
+            .filter(Expense.year == y, Expense.source == "live")
+            .scalar()
+        ) or 0
+        daily_inc = (
+            db.session.query(func.coalesce(func.sum(DailyEntry.amount), 0))
+            .filter(DailyEntry.year == y, DailyEntry.entry_type == "income")
+            .scalar()
+        ) or 0
+        daily_exp = (
+            db.session.query(func.coalesce(func.sum(DailyEntry.amount), 0))
+            .filter(DailyEntry.year == y, DailyEntry.entry_type == "expense")
+            .scalar()
+        ) or 0
+        bid_amt = (
+            db.session.query(func.coalesce(func.sum(ThisYearItem.bid_amount), 0))
+            .filter(ThisYearItem.year == y, ThisYearItem.bid_amount > 0)
+            .scalar()
+        ) or 0
+        paid_in_items = (
+            db.session.query(func.coalesce(func.sum(ThisYearItem.paid_amount), 0))
+            .filter(ThisYearItem.year == y, ThisYearItem.paid_amount > 0)
+            .scalar()
+        ) or 0
+        live_collected = (
+            db.session.query(func.coalesce(func.sum(LiveIncome.amount), 0))
+            .filter(LiveIncome.source_year == y)
+            .scalar()
+        ) or 0
+
+        total_inc = pl_inc + daily_inc
+        bid_rcvd = paid_in_items + live_collected
+        actual_rcvd = total_inc + bid_rcvd
+        total_exp = pl_exp + live_exp + daily_exp
+
+        multi_year_data[y] = {
+            "pl_total_income": total_inc,
+            "bidding_receivable": bid_amt,
+            "actual_received": actual_rcvd,
+            "total_expense": total_exp,
+            "actual_surplus": actual_rcvd - total_exp,
+        }
 
     return render_template(
         "pl/index.html",
@@ -167,6 +261,8 @@ def view_pl():
         nominal_income=nominal_income,
         actual_surplus=actual_surplus,
         nominal_surplus=nominal_surplus,
+        # Multi-year comparison
+        multi_year_data=multi_year_data,
     )
 
 
