@@ -75,9 +75,27 @@ def create_app(config_name: str | None = None) -> Flask:
     @flask_app.context_processor
     def inject_globals():
         from datetime import datetime
+        from app.extensions import db
+        from app.models.this_year_item import ThisYearItem
+        from app.models.bid import Bid
+        from app.models.edition import Edition
+        from app.models.pl import PL
+
+        # Gather all distinct years from DB tables that have a 'year' column
+        years = set()
+        try:
+            for model in (ThisYearItem, Bid, Edition, PL):
+                rows = db.session.query(model.year).distinct().all()
+                years.update(r[0] for r in rows if r[0] is not None)
+        except Exception:
+            pass  # Fall back to just current_year if DB not ready
+
+        all_years = sorted(years, reverse=True) if years else [datetime.now().year]
+
         return {
             "app_version": flask_app.config.get("VERSION", "v2.0.0"),
             "current_year": datetime.now().year,
+            "all_years": all_years,
         }
 
     return flask_app

@@ -81,7 +81,7 @@ def live_bidding():
 @bp.route("/bidding/record", methods=["POST"])
 @login_required
 def live_bidding_record():
-    """Record a bid (update this_year_items)."""
+    """Record a bid (update this_year_items + create Bid record for payment tracking)."""
     item_id = int(request.form.get("item_id", 0))
     bidder_name = request.form.get("bidder_name", "").strip()
     bid_amount = float(request.form.get("bid_amount", 0) or 0)
@@ -90,6 +90,7 @@ def live_bidding_record():
     paid_amount = float(request.form.get("paid_amount", 0) or 0)
     payment_method = request.form.get("payment_method", "")
     paid_handler = request.form.get("paid_handler", "").strip()
+    member_id = request.form.get("member_id", type=int)
 
     item = db.session.get(ThisYearItem, item_id)
     if not item:
@@ -102,6 +103,39 @@ def live_bidding_record():
     item.paid_amount = paid_amount
     item.payment_method = payment_method if paid_amount > 0 else item.payment_method
     item.paid_handler = paid_handler if paid_amount > 0 else item.paid_handler
+
+    # Also create/update a Bid record for payment/debt tracking
+    if member_id and bid_amount > 0:
+        from sqlalchemy import func as sa_func
+        member = db.session.get(Member, member_id)
+        if member:
+            item_record = None
+            if item.sticker_no:
+                item_record = Item.query.filter_by(item_id=item.sticker_no).first()
+            if item_record:
+                existing_bid = Bid.query.filter_by(
+                    member_id=member_id,
+                    year=item.year,
+                    item_id=item_record.item_id,
+                ).first()
+                if existing_bid:
+                    existing_bid.bid_amount = bid_amount
+                    existing_bid.paid_amount = paid_amount
+                    existing_bid.payment_method = payment_method if paid_amount > 0 else existing_bid.payment_method
+                    existing_bid.handler = handler or existing_bid.handler
+                else:
+                    max_bid_no = db.session.query(sa_func.max(Bid.bid_no)).filter(Bid.year == item.year).scalar()
+                    bid = Bid(
+                        year=item.year,
+                        member_id=member_id,
+                        item_id=item_record.item_id,
+                        bid_amount=bid_amount,
+                        paid_amount=paid_amount,
+                        payment_method=payment_method if paid_amount > 0 else "",
+                        handler=handler,
+                        bid_no=(max_bid_no or 0) + 1,
+                    )
+                    db.session.add(bid)
 
     db.session.commit()
     # If AJAX request (from JS fetch), return JSON. Otherwise redirect back.

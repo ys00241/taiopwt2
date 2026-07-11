@@ -117,8 +117,8 @@
           <td style="text-align: right;">
             {% set unpaid = m.total_due - m.total_paid %}
             {% if unpaid > 0 %}
-            <a href="#" onclick="event.stopPropagation(); showDebtModal({{ m.member_id }}, {{ m.name|tojson }}); return false;"
-               style="color: var(--tertiary); font-weight: 600; text-decoration: none; cursor: pointer;">
+            <a href="/live/payments?year={{ current_year }}&member_id={{ m.member_id }}"
+               onclick="event.stopPropagation();" style="color: var(--tertiary); font-weight: 600; text-decoration: none; cursor: pointer;">
               ${{ unpaid|int }}
             </a>
             {% else %}
@@ -177,8 +177,8 @@
             {% endif %}
             {% set unpaid = m.total_due - m.total_paid %}
           {% if unpaid > 0 %}
-          <a href="#" onclick="event.stopPropagation(); showDebtModal({{ m.member_id }}, {{ m.name|tojson }}); return false;"
-             style="text-decoration: none;">
+          <a href="/live/payments?year={{ current_year }}&member_id={{ m.member_id }}"
+             onclick="event.stopPropagation();" style="text-decoration: none;">
             <span class="chip chip-red">${{ unpaid|int }}</span>
           </a>
           {% elif m.total_due > 0 %}
