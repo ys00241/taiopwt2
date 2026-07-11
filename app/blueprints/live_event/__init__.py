@@ -470,14 +470,15 @@ def live_payments_debt_details(member_id):
 
     items = []
     for row in unpaid_bids:
+        b = row.Bid  # Bid model instance
         item_name = row.name_1_auspicious or row.name_2_description or "—"
         items.append({
-            "bid_id": row.Bid.id,
-            "year": row.year,
+            "bid_id": b.id,
+            "year": b.year,
             "item_name": item_name,
-            "bid_amount": row.bid_amount,
-            "paid_amount": row.paid_amount,
-            "unpaid": row.bid_amount - row.paid_amount,
+            "bid_amount": b.bid_amount,
+            "paid_amount": b.paid_amount,
+            "unpaid": (b.bid_amount or 0) - (b.paid_amount or 0),
         })
 
     return jsonify(items)
