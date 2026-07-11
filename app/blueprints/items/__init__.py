@@ -91,3 +91,47 @@ def item_detail(item_id):
             ),
         }
     )
+
+
+@bp.route("/items/<int:item_id>/edit", methods=["POST"])
+@login_required
+def item_edit(item_id):
+    """Edit item's year_data (add/edit year entry)."""
+    from flask import request
+    from app.extensions import db
+
+    item = Item.query.filter_by(item_id=item_id).first()
+    if not item:
+        return jsonify({"error": "Item not found"}), 404
+
+    year = request.form.get("year", type=int)
+    cost_hkd = request.form.get("cost_hkd", type=float)
+    supplier = request.form.get("supplier", "").strip()
+
+    if not year:
+        return jsonify({"error": "年份為必填"}), 400
+
+    year_data = json.loads(item.year_data or "[]")
+
+    # Update existing or append new
+    found = False
+    for yd in year_data:
+        if yd.get("year") == year:
+            if cost_hkd is not None:
+                yd["cost_hkd"] = cost_hkd
+            if supplier:
+                yd["supplier"] = supplier
+            found = True
+            break
+
+    if not found:
+        year_data.append({
+            "year": year,
+            "cost_hkd": cost_hkd,
+            "supplier": supplier,
+        })
+
+    item.year_data = json.dumps(year_data)
+    db.session.commit()
+
+    return jsonify({"ok": True, "year_data": year_data})
