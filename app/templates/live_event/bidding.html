@@ -322,10 +322,10 @@
   <div id="availablePanel" class="flex flex-col gap-sm">
     {% if available_items %}
     {% for item in available_items %}
-    <div class="bid-item-card" data-bid-id="{{ item.id }}" data-bid-name="{{ item.item_name|e }}" data-bid-sticker="{{ item.sticker_no|default(0) }}" data-bid-cost="{{ item.cost|default(0)|int }}">
+    <div class="bid-item-card" data-bid-id="{{ item.id }}" data-bid-name="{{ item.item_name or item.actual_item or ''|e }}" data-bid-sticker="{{ item.sticker_no|default(0) }}" data-bid-cost="{{ item.cost|default(0)|int }}">
       <div class="sticker" onclick="event.stopPropagation(); openItemDetail({{ item.id }});" style="cursor:pointer;">{{ "%02d"|format(item.sticker_no|int) if item.sticker_no else '??' }}</div>
       <div class="flex-1 min-w-0">
-        <div class="font-headline-sm truncate" onclick="event.stopPropagation(); openItemDetail({{ item.id }});" style="cursor:pointer;">{{ item.item_name or '未命名' }}</div>
+        <div class="font-headline-sm truncate" onclick="event.stopPropagation(); openItemDetail({{ item.id }});" style="cursor:pointer;">{{ item.item_name or item.actual_item or '未命名' }}</div>
         <div class="font-body-sm text-on-surface-variant mt-xs">底價/成本: ${{ item.cost|int if item.cost else 0 }}</div>
       </div>
       <span class="material-symbols-outlined" style="color: var(--primary);">gavel</span>
@@ -349,7 +349,7 @@
     <div class="won-item-card" style="cursor:pointer;" onclick="openItemDetail({{ item.id }})">
       <div class="sticker">{{ "%02d"|format(item.sticker_no|int) if item.sticker_no else '??' }}</div>
       <div class="flex-1 min-w-0">
-        <div class="font-headline-sm truncate">{{ item.item_name or '未命名' }}</div>
+        <div class="font-headline-sm truncate">{{ item.item_name or item.actual_item or '未命名' }}</div>
         <div class="flex items-center gap-xs mt-xs">
           <span class="font-label-lg" style="color: var(--primary);">{{ item.bidder_name or '—' }}</span>
           <span class="font-headline-sm">${{ item.bid_amount|int if item.bid_amount else 0 }}</span>

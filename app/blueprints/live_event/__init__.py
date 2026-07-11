@@ -403,7 +403,7 @@ def live_payments_pay():
     # If specific bid_ids provided, only pay those
     bid_ids_param = request.form.get("bid_ids", "").strip()
     if bid_ids_param:
-        selected_ids = [int(x) for x in bid_ids_param.split(",") if x.strip()]
+        selected_ids = [x for x in bid_ids_param.split(",") if x.strip()]
         unpaid_bids = (
             Bid.query
             .filter(
@@ -464,7 +464,7 @@ def live_payments_debt_details(member_id):
             Bid.member_id == member_id,
             Bid.bid_amount > Bid.paid_amount,
         )
-        .order_by(Bid.year, Bid.bid_no)
+        .order_by(Bid.year.desc(), Bid.bid_no)
         .all()
     )
 
