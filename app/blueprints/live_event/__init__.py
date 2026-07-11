@@ -380,7 +380,6 @@ def live_payments():
         recent_payments=recent,
         year=year, source_year=source_year, search=search,
         years=years, show_bad_debt=show_bad_debt,
-        members_json=json.dumps(result, ensure_ascii=False),
     )
 
 
