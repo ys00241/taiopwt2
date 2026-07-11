@@ -16,6 +16,7 @@ from app.models.sponsor import Sponsor
 from app.models.member import Member
 from app.models.bid import Bid
 from app.models.item import Item
+from app.blueprints.manage import _load_categories
 
 bp = Blueprint("pre_event", __name__,
                url_prefix="/pre")
@@ -80,6 +81,8 @@ def pre_items():
         sticker_no=i.sticker_no,
     ) for i in items}, ensure_ascii=False)
 
+    item_categories = _load_categories("item")
+
     return render_template(
         "pre_event/items.html",
         items=items,
@@ -87,6 +90,7 @@ def pre_items():
         years=years,
         stats=stats,
         items_json=items_json,
+        item_categories=item_categories,
     )
 
 

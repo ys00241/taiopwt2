@@ -352,14 +352,9 @@
           <label class="form-label" for="category">類別</label>
           <select class="form-input" id="category" name="category">
             <option value="">選擇類別</option>
-            <option value="花炮">花炮</option>
-            <option value="神像">神像</option>
-            <option value="祭品">祭品</option>
-            <option value="裝飾">裝飾</option>
-            <option value="食品">食品</option>
-            <option value="飲品">飲品</option>
-            <option value="用品">用品</option>
-            <option value="其他">其他</option>
+            {% for cat in item_categories %}
+            <option value="{{ cat }}">{{ cat }}</option>
+            {% endfor %}
           </select>
         </div>
         <div>

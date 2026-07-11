@@ -144,7 +144,7 @@
           </td>
           <td>
             <div class="font-label-lg" style="color: var(--primary); cursor: pointer;"
-                 {% if b.item_id %}onclick="openItemDetailFromDb({{ b.item_id }})"{% endif %}>
+                 {% if b.item_id and b.item_id > 0 %}onclick="openItemDetailFromDb({{ b.item_id }})"{% endif %}>
               {% if b.name_1_auspicious %}{{ b.name_1_auspicious }}{% endif %}
               {% if b.name_1_auspicious and b.name_2_description %} · {% endif %}
               {% if b.name_2_description %}{{ b.name_2_description }}{% endif %}

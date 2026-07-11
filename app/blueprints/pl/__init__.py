@@ -21,7 +21,7 @@ def view_pl():
     year = request.args.get("year", type=int)
 
     # Default to latest year
-    if not year:
+    if not year or year == 0:
         latest = db.session.query(func.max(Edition.year)).scalar()
         year = latest or 2025
 
@@ -36,6 +36,63 @@ def view_pl():
         .order_by(PL.subject)
         .all()
     )
+
+    # Fallback: if no PL data found for this year, try to compute summary
+    # from LiveIncome, Bid, and DailyEntry tables so the view isn't blank.
+    if not income_rows and not expense_rows:
+        from types import SimpleNamespace
+        from app.models.live_income import LiveIncome
+        from app.models.daily_entry import DailyEntry
+
+        live_income_total = (
+            db.session.query(func.coalesce(func.sum(LiveIncome.amount), 0))
+            .filter(LiveIncome.year == year)
+            .scalar()
+        )
+        bid_income_total = (
+            db.session.query(func.coalesce(func.sum(Bid.bid_amount), 0))
+            .filter(Bid.year == year)
+            .scalar()
+        )
+        daily_income_total = (
+            db.session.query(func.coalesce(func.sum(DailyEntry.amount), 0))
+            .filter(DailyEntry.year == year, DailyEntry.entry_type == "income")
+            .scalar()
+        )
+        daily_expense_total = (
+            db.session.query(func.coalesce(func.sum(DailyEntry.amount), 0))
+            .filter(DailyEntry.year == year, DailyEntry.entry_type == "expense")
+            .scalar()
+        )
+
+        # Build synthetic rows for fallback display
+        income_fallback = []
+        if float(live_income_total) > 0:
+            income_fallback.append(SimpleNamespace(
+                subject="現場收款 (LiveIncome)", amount_hkd=float(live_income_total),
+                payment_method="",
+            ))
+        if float(bid_income_total) > 0:
+            income_fallback.append(SimpleNamespace(
+                subject="競投收入 (Bid)", amount_hkd=float(bid_income_total),
+                payment_method="",
+            ))
+        if float(daily_income_total) > 0:
+            income_fallback.append(SimpleNamespace(
+                subject="其他日常收入 (DailyEntry)", amount_hkd=float(daily_income_total),
+                payment_method="",
+            ))
+        expense_fallback = []
+        if float(daily_expense_total) > 0:
+            expense_fallback.append(SimpleNamespace(
+                subject=f"日常支出 (DailyEntry, {year}年)", amount_hkd=float(daily_expense_total),
+                payment_method="",
+            ))
+
+        if income_fallback:
+            income_rows = income_fallback
+        if expense_fallback:
+            expense_rows = expense_fallback
 
     # Build summary categorised by subject
     # Income: 收入(上年) CASH/CHQ, 收入(本年) CASH/CHQ, 會費, 香油, 其他收入

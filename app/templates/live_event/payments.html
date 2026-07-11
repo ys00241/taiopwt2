@@ -244,6 +244,7 @@
       <input type="text" id="paymentSearch" placeholder="輸入會員姓名搜尋..." autocomplete="off" oninput="searchMember(this.value)">
     </div>
     <div id="searchResults" class="mt-sm" style="display: none;"></div>
+    <div id="memberResult" style="display: none;"></div>
   </div>
 
   <!-- ═══ Members with Outstanding Balance (default view, shown when no search) ═══ -->
@@ -447,7 +448,7 @@
 
       resultsDiv.innerHTML = matches.map(m =>
         `<div class="font-body-sm" style="color: #ffffff; padding: 0.5rem 0; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.1);"
-              onclick="showMemberResult({id:${m.member_id}, name:'${m.name.replace(/'/g, "\\'")}', total_due:${m.total_due||0}, total_paid:${m.total_paid||0}, unpaid:${m.unpaid||0}})"
+              onclick="showMemberResult({member_id:${m.member_id}, name:'${m.name.replace(/'/g, "\\'")}', total_due:${m.total_due||0}, total_paid:${m.total_paid||0}, unpaid:${m.unpaid||0}})"
       ).join('');
       resultsDiv.style.display = 'block';
       memberDiv.style.display = 'none';
