@@ -422,9 +422,11 @@ def export_pl_excel():
     row_num += 1
 
     # Bidding income row (應收)
-    ws.cell(row=row_num, column=1, value="競投應收 (即時)").font = data_font
-    ws.cell(row=row_num, column=1).border = thin_border
-    ws.cell(row=row_num, column=1).font.italic = True
+    from copy import copy
+    from openpyxl.styles import Font as OxlFont
+    cell = ws.cell(row=row_num, column=1, value="競投應收 (即時)")
+    cell.font = Font(name="Microsoft JhengHei", size=10, italic=True)
+    cell.border = thin_border
     for ci, y in enumerate(selected_years, 2):
         cell = ws.cell(row=row_num, column=ci, value=bidding_income_per_year.get(y, 0))
         cell.font = data_font

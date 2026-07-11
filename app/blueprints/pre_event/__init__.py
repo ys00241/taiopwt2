@@ -1130,6 +1130,15 @@ def pre_previous_batch_pdf():
     from reportlab.lib.units import mm
     from reportlab.pdfgen import canvas
     from reportlab.lib.colors import HexColor
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+
+    _CJK_FONT = "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc"
+    try:
+        pdfmetrics.registerFont(TTFont("CJK", _CJK_FONT))
+        CJK = "CJK"
+    except Exception:
+        CJK = "Helvetica"
 
     year = int(request.form.get("year", datetime.now().strftime("%Y")))
     member_ids = request.form.getlist("member_ids")
@@ -1165,30 +1174,30 @@ def pre_previous_batch_pdf():
         total = sum(b.bid_amount or 0 for b in bids)
 
         # Title
-        c.setFont("Helvetica-Bold", 16)
+        c.setFont(CJK, 16)
         c.setFillColor(HexColor("#8b0000"))
         c.drawCentredString(width / 2, height - 30 * mm, "寶榮堂花炮會 — 粉紅紙")
-        c.setFont("Helvetica", 10)
+        c.setFont(CJK, 10)
         c.setFillColor(HexColor("#666666"))
         c.drawCentredString(width / 2, height - 36 * mm, f"Pink Slip — {year}")
 
         # Member info
         c.setFillColor(HexColor("#000000"))
-        c.setFont("Helvetica-Bold", 12)
+        c.setFont(CJK, 12)
         c.drawString(20 * mm, height - 48 * mm, f"會員: {member.name} (編號: {member.member_id})")
 
         # Table header
         y_start = height - 58 * mm
         row_h = 7 * mm
         col_x = [20 * mm, 40 * mm, 140 * mm]
-        c.setFont("Helvetica-Bold", 10)
+        c.setFont(CJK, 10)
         c.drawString(col_x[0], y_start, "#")
         c.drawString(col_x[1], y_start, "聖物名稱")
         c.drawString(col_x[2], y_start, "金額")
 
         y = y_start - row_h
         for idx, bid in enumerate(bids):
-            c.setFont("Helvetica", 10)
+            c.setFont(CJK, 10)
             c.drawString(col_x[0], y, str(idx + 1))
             desc = bid.item.name_1_auspicious if bid.item and bid.item.name_1_auspicious else \
                    bid.item.name_2_description if bid.item else "-"
@@ -1197,7 +1206,7 @@ def pre_previous_batch_pdf():
             y -= row_h
 
         # Total
-        c.setFont("Helvetica-Bold", 11)
+        c.setFont(CJK, 11)
         c.drawString(col_x[1], y, "總計:")
         c.drawString(col_x[2], y, f"${total:,.0f}")
 
