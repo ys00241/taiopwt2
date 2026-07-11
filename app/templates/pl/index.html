@@ -24,6 +24,31 @@
     <!-- ═══ LEFT: Income Statement ═══ -->
     <div class="lg:col-span-2 space-y-lg">
 
+      <!-- ── Bidding Income (Live) ── -->
+      <div class="imperial-card" style="border-left: 4px solid #ca8a04;">
+        <div class="flex items-center gap-sm mb-md">
+          <span class="material-symbols-outlined" style="color: #ca8a04; font-size: 1.5rem;">gavel</span>
+          <h2 class="font-headline-md" style="color: var(--on-surface);">競投收入 Bidding Income</h2>
+        </div>
+
+        <div class="space-y-sm">
+          <div class="flex items-center justify-between py-xs px-sm" style="border-radius: 6px; background: var(--surface-container);">
+            <span class="font-body-sm" style="color: var(--on-surface-variant);">應收金額 (競投總額)</span>
+            <span class="font-headline-sm" style="color: #ca8a04;">${{ bidding_receivable|int }}</span>
+          </div>
+          <div class="flex items-center justify-between py-xs px-sm" style="border-radius: 6px; background: var(--surface-container);">
+            <span class="font-body-sm" style="color: var(--on-surface-variant);">已收金額</span>
+            <span class="font-headline-sm" style="color: #166534;">${{ bidding_received|int }}</span>
+          </div>
+          <div class="flex items-center justify-between py-xs px-sm" style="border-radius: 6px; background: var(--surface-container);">
+            <span class="font-body-sm" style="color: var(--on-surface-variant);">未收欠款</span>
+            <span class="font-headline-sm" style="color: {% if bidding_outstanding > 0 %}var(--tertiary){% else %}#166534{% endif %};">
+              {% if bidding_outstanding > 0 %}${{ bidding_outstanding|int }}{% else %}$0{% endif %}
+            </span>
+          </div>
+        </div>
+      </div>
+
       <!-- ── Income Sections ── -->
       <div class="imperial-card">
         <div class="flex items-center gap-sm mb-md">
@@ -113,6 +138,15 @@
       <div class="imperial-card">
         <h2 class="font-headline-md mb-md" style="color: var(--on-surface);">摘要 Summary</h2>
         <div class="space-y-md">
+          <div>
+            <span class="font-label-md" style="color: var(--on-surface-variant);">其他收入 (PL)</span>
+            <div class="font-headline-sm" style="color: #166534;">${{ pl_total_income|int }}</div>
+          </div>
+          <div>
+            <span class="font-label-md" style="color: var(--on-surface-variant);">競投收入</span>
+            <div class="font-headline-sm" style="color: #ca8a04;">${{ bidding_receivable|int }}</div>
+          </div>
+          <div style="height: 1px; background: var(--outline-variant);"></div>
           <div>
             <span class="font-label-md" style="color: var(--on-surface-variant);">總收入</span>
             <div class="font-headline-lg" style="color: #166534;">${{ total_income|int }}</div>

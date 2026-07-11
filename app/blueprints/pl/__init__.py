@@ -15,6 +15,7 @@ def view_pl():
     from app.models.edition import Edition
     from app.models.this_year_item import ThisYearItem
     from app.models.bid import Bid
+    from app.models.live_income import LiveIncome
     from sqlalchemy import func
     from datetime import datetime
 
@@ -25,7 +26,33 @@ def view_pl():
         latest = db.session.query(func.max(Edition.year)).scalar()
         year = latest or 2025
 
-    # Fetch income and expense rows separately
+    # ════════════════════════════════════════════════════════════
+    #  Live bidding income (real-time from this_year_items)
+    # ════════════════════════════════════════════════════════════
+    bidding_receivable = (
+        db.session.query(func.coalesce(func.sum(ThisYearItem.bid_amount), 0))
+        .filter(ThisYearItem.year == year, ThisYearItem.bid_amount > 0)
+        .scalar()
+    ) or 0
+
+    bidding_paid_in_items = (
+        db.session.query(func.coalesce(func.sum(ThisYearItem.paid_amount), 0))
+        .filter(ThisYearItem.year == year, ThisYearItem.paid_amount > 0)
+        .scalar()
+    ) or 0
+
+    bidding_live_collected = (
+        db.session.query(func.coalesce(func.sum(LiveIncome.amount), 0))
+        .filter(LiveIncome.source_year == year)
+        .scalar()
+    ) or 0
+
+    bidding_received = bidding_paid_in_items + bidding_live_collected
+    bidding_outstanding = bidding_receivable - bidding_received
+
+    # ════════════════════════════════════════════════════════════
+    #  PL table (static imported data)
+    # ════════════════════════════════════════════════════════════
     income_rows = (
         PL.query.filter(PL.year == year, PL.pl_type == "收入")
         .order_by(PL.subject)
@@ -132,7 +159,8 @@ def view_pl():
     for section, rows in expense_sections.items():
         expense_totals[section] = sum(r.amount_hkd or 0 for r in rows)
 
-    total_income = sum(
+    # PL table subtotal
+    pl_total_income = sum(
         sum(r.amount_hkd or 0 for r in rows) for rows in income_sections.values()
     )
     total_expense = sum(
@@ -140,6 +168,10 @@ def view_pl():
     )
 
     # Year list — from actual data, not Edition table
+    # Grand total income = PL static income + bidding receivable (real)
+    total_income = pl_total_income + bidding_receivable
+
+    # Year list
     years = [
         r[0]
         for r in db.session.query(func.distinct(PL.year))
@@ -181,6 +213,11 @@ def view_pl():
         total_expense=total_expense,
         net_profit=total_income - total_expense,
         total_unpaid=float(total_unpaid),
+        # New bidding income data
+        bidding_receivable=bidding_receivable,
+        bidding_received=bidding_received,
+        bidding_outstanding=bidding_outstanding,
+        pl_total_income=pl_total_income,
     )
 
 
@@ -193,6 +230,7 @@ def export_pl_excel():
     from app.models.pl import PL
     from app.models.edition import Edition
     from app.models.this_year_item import ThisYearItem
+    from app.models.live_income import LiveIncome
     from sqlalchemy import func
     import io
 
@@ -273,6 +311,16 @@ def export_pl_excel():
     income_data = get_subject_totals("收入")
     expense_data = get_subject_totals("支出")
 
+    # Add bidding income row for each year
+    bidding_income_per_year = {}
+    for y in selected_years:
+        bid_amt = (
+            db.session.query(func.coalesce(func.sum(ThisYearItem.bid_amount), 0))
+            .filter(ThisYearItem.year == y, ThisYearItem.bid_amount > 0)
+            .scalar()
+        ) or 0
+        bidding_income_per_year[y] = bid_amt
+
     row_num = 4
 
     # ── Income Section ──
@@ -296,11 +344,24 @@ def export_pl_excel():
             cell.border = thin_border
         row_num += 1
 
-    # Income total row
+    # Bidding income row (live from this_year_items)
+    ws.cell(row=row_num, column=1, value="競投收入 (即時)").font = data_font
+    ws.cell(row=row_num, column=1).border = thin_border
+    ws.cell(row=row_num, column=1).font.italic = True
+    for ci, y in enumerate(selected_years, 2):
+        cell = ws.cell(row=row_num, column=ci, value=bidding_income_per_year.get(y, 0))
+        cell.font = data_font
+        cell.number_format = money_fmt
+        cell.border = thin_border
+    row_num += 1
+
+    # Income total row (PL + bidding)
     income_year_totals = {}
     for subject, yearly in income_data.items():
         for y in selected_years:
             income_year_totals[y] = income_year_totals.get(y, 0) + (yearly.get(y, 0) or 0)
+    for y in selected_years:
+        income_year_totals[y] = income_year_totals.get(y, 0) + bidding_income_per_year.get(y, 0)
 
     ws.cell(row=row_num, column=1, value="收入合計").font = total_font
     ws.cell(row=row_num, column=1).fill = total_fill
