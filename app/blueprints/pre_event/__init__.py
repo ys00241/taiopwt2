@@ -103,18 +103,18 @@ def pre_items_add():
     actual_item = request.form.get("actual_item", "").strip()
     photo_codes = request.form.get("photo_codes", "").strip()
 
-    # Auto-assign sticker number: 1-50, skip 4,14,24,34
+    # Auto-assign sticker number: YY## format (e.g., 2026→2601), skip numbers ending in 4
     used = {
         r[0] for r in db.session.query(ThisYearItem.sticker_no)
         .filter(ThisYearItem.year == year, ThisYearItem.sticker_no.isnot(None))
         .all()
     }
-    skip = {4, 14, 24, 34}
+    base = (year % 100) * 100
     sticker_no = None
     if request.form.get("auto_sticker", "1") == "1":
         for n in range(1, 51):
-            if n not in used and n not in skip:
-                sticker_no = n
+            if (base + n) not in used and n % 10 != 4:
+                sticker_no = base + n
                 break
 
     item = ThisYearItem(
@@ -201,7 +201,7 @@ def pre_items_import_csv():
         .filter(ThisYearItem.year == year, ThisYearItem.sticker_no.isnot(None))
         .all()
     }
-    skip = {4, 14, 24, 34}
+    base = (year % 100) * 100
     next_sticker = 1
 
     count = 0
@@ -209,11 +209,11 @@ def pre_items_import_csv():
         item_name = row.get("item_name", "").strip()
         if not item_name:
             continue
-        # Auto-assign sticker
-        while next_sticker in used or next_sticker in skip:
+        # Auto-assign sticker: YY## format, skip numbers ending in 4
+        while (base + next_sticker) in used or next_sticker % 10 == 4:
             next_sticker += 1
-        sticker_no = next_sticker if next_sticker <= 50 else None
-        used.add(next_sticker)
+        sticker_no = (base + next_sticker) if next_sticker <= 50 else None
+        used.add(base + next_sticker)
         next_sticker += 1
 
         item = ThisYearItem(
@@ -439,7 +439,8 @@ def item_detail_api(item_id):
     # Gather bid history from Bid table via Item mapping (sticker_no → item_id)
     bid_records = []
     if item.sticker_no:
-        item_record = Item.query.filter_by(item_id=item.sticker_no).first()
+        seq = item.sticker_no % 100
+        item_record = Item.query.filter_by(item_id=seq).first()
         if item_record:
             bids = (
                 Bid.query

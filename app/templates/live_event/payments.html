@@ -251,7 +251,7 @@
     {% if not search %}
       {% if members_with_debt %}
         {% for m in members_with_debt %}
-        <div class="member-result-card mb-sm" onclick="openPaymentSheet({{ m.member_id }}, {{ m.name|tojson }}, {{ m.total_due|default(0)|int }}, {{ m.total_paid_combined|default(0)|int }}, {{ m.unpaid|default(0)|int }})">
+        <div class="member-result-card mb-sm" data-member-id="{{ m.member_id }}" data-member-name="{{ m.name|e }}" data-total-due="{{ m.total_due|default(0)|int }}" data-total-paid="{{ m.total_paid_combined|default(0)|int }}" data-unpaid="{{ m.unpaid|default(0)|int }}" onclick="openPaymentSheet(this.dataset.memberId, this.dataset.memberName, this.dataset.totalDue, this.dataset.totalPaid, this.dataset.unpaid)">
           <div class="flex items-center justify-between mb-sm">
             <span class="name">{{ m.name }}</span>
             <span class="material-symbols-outlined" style="color: var(--on-surface-variant);">chevron_right</span>
@@ -354,6 +354,9 @@
     <form id="paymentForm" method="POST" action="{{ url_for('live_event.live_payments_pay') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
       <input type="hidden" name="member_id" id="payMemberId" value="">
+      <input type="hidden" name="member_name" id="payMemberName" value="">
+      <input type="hidden" name="year" value="{{ year }}">
+      <input type="hidden" name="source_year" value="{{ source_year }}">
 
       <!-- Amount (huge input) -->
       <div class="mb-md">
@@ -444,7 +447,7 @@
 
       resultsDiv.innerHTML = matches.map(m =>
         `<div class="font-body-sm" style="color: #ffffff; padding: 0.5rem 0; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.1);"
-              onclick="showMemberResult({id:${m.id}, name:'${m.name.replace(/'/g, "\\'")}', total_due:${m.total_due||0}, total_paid:${m.total_paid||0}, unpaid:${m.unpaid||0}})">${m.name}</div>`
+              onclick="showMemberResult({id:${m.member_id}, name:'${m.name.replace(/'/g, "\\'")}', total_due:${m.total_due||0}, total_paid:${m.total_paid||0}, unpaid:${m.unpaid||0}})"
       ).join('');
       resultsDiv.style.display = 'block';
       memberDiv.style.display = 'none';
@@ -455,7 +458,7 @@
     const div = document.getElementById('memberResult');
     div.style.display = 'block';
     div.innerHTML = `
-      <div class="member-result-card" onclick="openPaymentSheet(${member.id}, '${member.name.replace(/'/g, "\\'")}', ${member.total_due||0}, ${member.total_paid||0}, ${member.unpaid||0})">
+      <div class="member-result-card" onclick="openPaymentSheet(${member.member_id}, '${member.name.replace(/'/g, "\\'").replace(/"/g, "&quot;")}', ${member.total_due||0}, ${member.total_paid||0}, ${member.unpaid||0})">
         <div class="flex items-center justify-between mb-sm">
           <span class="name">${member.name}</span>
           <span class="material-symbols-outlined" style="color: var(--on-surface-variant);">chevron_right</span>
@@ -485,6 +488,7 @@
   // ════════════════════════════════════════
   function openPaymentSheet(memberId, memberName, totalDue, totalPaid, unpaid) {
     document.getElementById('payMemberId').value = memberId;
+    document.getElementById('payMemberName').value = memberName;
     document.getElementById('paySheetTitle').textContent = `收款 — ${memberName}`;
     document.getElementById('paySheetMember').textContent = `應繳: $${totalDue} · 未繳: $${unpaid}`;
     document.getElementById('payTotalDue').textContent = `$${totalDue}`;
@@ -502,6 +506,7 @@
     document.body.style.overflow = '';
     document.getElementById('paymentForm').reset();
     document.getElementById('payMemberId').value = '';
+    document.getElementById('payMemberName').value = '';
     document.getElementById('payMethod').value = 'CASH';
     document.querySelectorAll('.pay-method-btn').forEach(b => b.classList.remove('active'));
     document.querySelector('.pay-method-btn[data-value="CASH"]').classList.add('active');
@@ -530,7 +535,7 @@
     const val = document.getElementById('payAmount').value;
     const btn = document.querySelector('.btn-pay-confirm');
     if (btn) {
-      btn.innerHTML = `<span class="material-symbols-outlined">check_circle</span> 確認收款 $${parseInt(val) || 0}`;
+      btn.innerHTML = `<span class="material-symbols-outlined">check_circle</span> 確認收款 $${parseFloat(val) || 0}`;
     }
   }
 

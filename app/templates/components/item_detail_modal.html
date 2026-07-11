@@ -133,7 +133,7 @@ function openItemDetail(itemId) {
       if (content) content.style.display = 'block';
 
       // Populate fields
-      var stickerStr = data.sticker_no ? String(data.sticker_no).padStart(2, '0') : '--';
+      var stickerStr = data.sticker_no ? String(data.sticker_no) : '--';
       document.getElementById('detailStickerBadge').textContent = stickerStr;
       document.getElementById('detailItemName').textContent = data.item_name || '—';
       document.getElementById('detailActualItem').textContent = data.actual_item || '—';
@@ -209,7 +209,7 @@ function openItemDetailFromDb(itemId) {
       if (loading) loading.style.display = 'none';
       if (content) content.style.display = 'block';
 
-      var stickerStr = data.sticker_no ? String(data.sticker_no).padStart(2, '0') : '--';
+      var stickerStr = data.sticker_no ? String(data.sticker_no) : '--';
       document.getElementById('detailStickerBadge').textContent = stickerStr;
       document.getElementById('detailItemName').textContent = data.item_name || '—';
       document.getElementById('detailActualItem').textContent = data.actual_item || '—';

@@ -93,7 +93,7 @@ def create_entry(data: dict) -> dict:
         entry_date = dt_date.fromisoformat(entry_date)
 
     entry = DailyEntry(
-        year=data.get("year", today.year),
+        year=data.get("year", entry_date.year if entry_date else today.year),
         entry_date=entry_date or today,
         entry_type=data.get("entry_type", "expense"),
         category=data.get("category", ""),

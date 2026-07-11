@@ -129,6 +129,13 @@
               {% if net_profit >= 0 %}+{% endif %}${{ net_profit|int }}
             </div>
           </div>
+          <div style="height: 1px; background: var(--outline-variant);"></div>
+          <div>
+            <span class="font-label-md" style="color: var(--on-surface-variant);">應收金額 Receivable</span>
+            <div class="font-headline-lg" style="color: var(--primary);">
+              ${{ total_unpaid|int }}
+            </div>
+          </div>
         </div>
       </div>
 

@@ -211,7 +211,7 @@
         {% if items %}
         {% for item in items %}
         <tr data-status="{% if item.bid_amount and item.bid_amount > 0 %}auctioned{% else %}unauctioned{% endif %}">
-          <td><a href="#" class="sticker-link" onclick="openItemDetail({{ item.id }}); return false;">{{ "%02d"|format(item.sticker_no|int) if item.sticker_no else '--' }}</a></td>
+          <td><a href="#" class="sticker-link" onclick="openItemDetail({{ item.id }}); return false;">{{ item.sticker_no if item.sticker_no else '--' }}</a></td>
           <td><span class="item-name-link" onclick="openItemDetail({{ item.id }})">{{ item.item_name or '—' }}</span></td>
           <td class="font-body-sm text-on-surface-variant">{{ item.actual_item or '—' }}</td>
           <td>{% if item.category %}<span class="chip chip-gold">{{ item.category }}</span>{% else %}<span class="font-body-sm text-on-surface-variant">—</span>{% endif %}</td>
@@ -253,7 +253,7 @@
     {% if items %}
     {% for item in items %}
     <div class="mobile-item-card" data-status="{% if item.bid_amount and item.bid_amount > 0 %}auctioned{% else %}unauctioned{% endif %}">
-      <div class="sticker-badge" onclick="openItemDetail({{ item.id }})" style="cursor:pointer;">{{ "%02d"|format(item.sticker_no|int) if item.sticker_no else '??' }}</div>
+      <div class="sticker-badge" onclick="openItemDetail({{ item.id }})" style="cursor:pointer;">{{ item.sticker_no if item.sticker_no else '??' }}</div>
       <div class="flex-1 min-w-0" onclick="openItemDetail({{ item.id }})" style="cursor:pointer;">
         <div class="flex items-center gap-xs mb-xs">
           <span class="font-headline-sm truncate">{{ item.item_name or '未命名' }}</span>

@@ -21,26 +21,36 @@ def list_members():
     """List all members with optional search/filter."""
     search = request.args.get("q", "").strip()
     unpaid_filter = request.args.get("unpaid", "").strip()
+    year = request.args.get("year", type=int) or 0
+
+    all_years = [
+        r[0]
+        for r in db.session.query(func.distinct(Bid.year))
+        .order_by(Bid.year.desc())
+        .all()
+    ]
 
     # Get all members with computed totals via subqueries
-    due_sub = (
+    due_query = (
         db.session.query(
             Bid.member_id,
             func.coalesce(func.sum(Bid.bid_amount), 0).label("total_due"),
         )
         .filter(Bid.bid_amount > 0)
-        .group_by(Bid.member_id)
-        .subquery()
     )
+    if year > 0:
+        due_query = due_query.filter(Bid.year == year)
+    due_sub = due_query.group_by(Bid.member_id).subquery()
 
-    paid_sub = (
+    paid_query = (
         db.session.query(
             Bid.member_id,
             func.coalesce(func.sum(Bid.paid_amount), 0).label("total_paid"),
         )
-        .group_by(Bid.member_id)
-        .subquery()
     )
+    if year > 0:
+        paid_query = paid_query.filter(Bid.year == year)
+    paid_sub = paid_query.group_by(Bid.member_id).subquery()
 
     last_pay_sub = (
         db.session.query(
@@ -161,6 +171,8 @@ def list_members():
         search=search,
         member_type=member_type_filter,
         status=status_filter,
+        selected_year=year,
+        all_years=all_years,
     )
 
 

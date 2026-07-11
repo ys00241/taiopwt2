@@ -14,6 +14,7 @@ def view_pl():
     from app.models.pl import PL
     from app.models.edition import Edition
     from app.models.this_year_item import ThisYearItem
+    from app.models.bid import Bid
     from sqlalchemy import func
     from datetime import datetime
 
@@ -99,6 +100,18 @@ def view_pl():
     if not year:
         year = years[0] if years else datetime.now().year
 
+    # 應收金額: total unpaid bids for the year
+    total_unpaid = (
+        db.session.query(
+            func.coalesce(func.sum(Bid.bid_amount - Bid.paid_amount), 0)
+        )
+        .filter(
+            Bid.year == year,
+            Bid.bid_amount > Bid.paid_amount,
+        )
+        .scalar()
+    )
+
     return render_template(
         "pl/index.html",
         year=year,
@@ -110,6 +123,7 @@ def view_pl():
         total_income=total_income,
         total_expense=total_expense,
         net_profit=total_income - total_expense,
+        total_unpaid=float(total_unpaid),
     )
 
 
