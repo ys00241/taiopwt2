@@ -243,6 +243,12 @@
       <span class="material-symbols-outlined">search</span>
       <input type="text" id="paymentSearch" placeholder="輸入會員姓名搜尋..." autocomplete="off" oninput="searchMember(this.value)">
     </div>
+    <div class="flex items-center gap-sm mt-sm" style="min-height: 2rem;">
+      <label class="flex items-center gap-xs" style="cursor: pointer; color: rgba(255,255,255,0.8); font-family: 'Inter', sans-serif; font-size: 0.8125rem;">
+        <input type="checkbox" id="showBadDebt" onchange="toggleBadDebt(this.checked)" {{ 'checked' if show_bad_debt else '' }}>
+        <span>顯示壞帳</span>
+      </label>
+    </div>
     <div id="searchResults" class="mt-sm" style="display: none;"></div>
     <div id="memberResult" style="display: none;"></div>
   </div>
@@ -519,6 +525,17 @@
       resultsDiv.style.display = 'block';
       memberDiv.style.display = 'none';
     }, 200);
+  }
+
+  function toggleBadDebt(show) {
+    // Reload the page with show_bad_debt param preserved
+    const url = new URL(window.location);
+    if (show) {
+      url.searchParams.set('show_bad_debt', '1');
+    } else {
+      url.searchParams.delete('show_bad_debt');
+    }
+    window.location.href = url.toString();
   }
 
   function showMemberResult(member) {

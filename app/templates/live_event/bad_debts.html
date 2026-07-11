@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}壞帳列表 — 寶榮堂花炮會{% endblock %}
+{% block page_title %}壞帳列表 Bad Debts{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+
+  <!-- ═══ Bad Debts Table ═══ -->
+  <div class="imperial-card overflow-hidden !p-0">
+    <div class="overflow-x-auto">
+      <table class="imperial-table">
+        <thead>
+          <tr>
+            <th>會員編號</th>
+            <th>姓名</th>
+            <th style="text-align: right;">欠款總額</th>
+            <th style="text-align: right;">已付</th>
+            <th style="text-align: right;">未付</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if members %}
+          {% for m in members %}
+          <tr>
+            <td style="color: var(--on-surface-variant); font-size: 0.8125rem;">{{ "%03d"|format(m.member_id) }}</td>
+            <td>
+              <span class="font-label-lg" style="color: var(--on-surface);">
+                {{ m.name }}
+              </span>
+            </td>
+            <td style="text-align: right; font-weight: 600;">${{ m.total_due|int }}</td>
+            <td style="text-align: right;">${{ m.total_paid|int }}</td>
+            <td style="text-align: right; {% if m.unpaid > 0 %}color: var(--tertiary); font-weight: 600;{% endif %}">
+              ${{ m.unpaid|int }}
+            </td>
+            <td>
+              <button class="btn-secondary" style="font-size: 0.75rem; padding: 0.375rem 0.75rem;"
+                      onclick="toggleBadDebt({{ m.member_id }}, '{{ m.name }}')">
+                <span class="material-symbols-outlined" style="font-size: 1rem;">undo</span>
+                解除壞帳
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+          {% else %}
+          <tr>
+            <td colspan="6" style="text-align: center; padding: 3rem 1rem; color: var(--on-surface-variant);">
+              <div class="flex flex-col items-center gap-sm">
+                <span class="material-symbols-outlined" style="font-size: 2.5rem;">check_circle</span>
+                <p class="font-body-md">暫無壞帳記錄</p>
+                <p class="font-body-sm">所有會員均已結清欠款</p>
+              </div>
+            </td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══ Summary ═══ -->
+  {% if members %}
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-md mt-lg">
+    <div class="imperial-card">
+      <span class="font-label-md" style="color: var(--on-surface-variant);">歸檔會員</span>
+      <div class="font-headline-lg" style="color: var(--on-surface);">{{ members|length }}</div>
+    </div>
+    <div class="imperial-card">
+      <span class="font-label-md" style="color: var(--on-surface-variant);">總未付金額</span>
+      <div class="font-headline-lg" style="color: var(--tertiary);">${{ total_bad_debt|int }}</div>
+    </div>
+    <div class="imperial-card">
+      <span class="font-label-md" style="color: var(--on-surface-variant);">總欠款 (含已付)</span>
+      <div class="font-headline-lg" style="color: var(--on-surface);">${{ members|sum(attribute='total_due')|int }}</div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleBadDebt(memberId, memberName) {
+  if (!confirm(`確定要解除「${memberName}」的壞帳標記嗎？`)) {
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('csrf_token', '{{ csrf_token() if csrf_token else "" }}');
+
+  fetch(`/live/members/${memberId}/toggle-bad-debt`, {
+    method: 'POST',
+    body: formData,
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.ok) {
+      window.location.reload();
+    } else {
+      alert(data.error || '操作失敗');
+    }
+  })
+  .catch(err => {
+    alert('網絡錯誤，請重試');
+  });
+}
+</script>
+{% endblock %}

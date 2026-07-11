@@ -264,5 +264,83 @@
     </div>
   </div>
 
+  <!-- ═══ Ledger 細則 ═══ -->
+  <div class="imperial-card mt-lg">
+    <div class="flex items-center justify-between mb-md">
+      <h2 class="font-headline-md" style="color: var(--on-surface);">Ledger 細則</h2>
+      <button class="btn-primary" onclick="loadLedger({{ year }}, this)">
+        <span class="material-symbols-outlined">receipt_long</span>
+        檢視 Ledger
+      </button>
+    </div>
+
+    <div id="ledgerContainer" style="display: none;">
+      <div id="ledgerSummary" class="grid grid-cols-3 gap-md mb-md"></div>
+      <div class="overflow-x-auto" style="max-height: 500px; overflow-y: auto;">
+        <table class="imperial-table" id="ledgerTable">
+          <thead>
+            <tr>
+              <th>日期</th>
+              <th>類型</th>
+              <th>科目</th>
+              <th style="text-align: right;">金額</th>
+              <th>付款方式</th>
+              <th>備註</th>
+            </tr>
+          </thead>
+          <tbody id="ledgerBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  async function loadLedger(year, btn) {
+    const container = document.getElementById('ledgerContainer');
+    const summary = document.getElementById('ledgerSummary');
+    const body = document.getElementById('ledgerBody');
+
+    container.style.display = 'block';
+
+    try {
+      const resp = await fetch('/pl/ledger-data?year=' + year);
+      const data = await resp.json();
+
+      summary.innerHTML = `
+        <div class="imperial-card" style="text-align: center; padding: 0.75rem;">
+          <div class="font-label-md text-on-surface-variant">總收入</div>
+          <div class="font-headline-md" style="color: #166534;">$${data.total_income.toLocaleString()}</div>
+        </div>
+        <div class="imperial-card" style="text-align: center; padding: 0.75rem;">
+          <div class="font-label-md text-on-surface-variant">總支出</div>
+          <div class="font-headline-md" style="color: var(--tertiary);">$${data.total_expense.toLocaleString()}</div>
+        </div>
+        <div class="imperial-card" style="text-align: center; padding: 0.75rem;">
+          <div class="font-label-md text-on-surface-variant">收支差額</div>
+          <div class="font-headline-md" style="color: ${(data.total_income - data.total_expense) >= 0 ? '#166534' : 'var(--tertiary)'};">${(data.total_income - data.total_expense) >= 0 ? '+' : ''}$${(data.total_income - data.total_expense).toLocaleString()}</div>
+        </div>
+      `;
+
+      body.innerHTML = data.ledger.map(item => {
+        const isIncome = item.type === '收入';
+        return `<tr style="background: ${isIncome ? 'rgba(22, 101, 52, 0.05)' : 'rgba(185, 28, 28, 0.05)'};">
+          <td>${item.date}</td>
+          <td><span class="chip ${isIncome ? 'chip-green' : 'chip-red'}">${item.type}</span></td>
+          <td>${item.subject}</td>
+          <td style="text-align: right; font-weight: 500;">$${item.amount.toLocaleString()}</td>
+          <td>${item.payment_method || '—'}</td>
+          <td>${item.notes || '—'}</td>
+        </tr>`;
+      }).join('');
+
+      btn.textContent = '重新整理 Ledger';
+    } catch (err) {
+      body.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--tertiary);">載入失敗</td></tr>`;
+    }
+  }
+</script>
 {% endblock %}

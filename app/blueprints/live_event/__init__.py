@@ -6,7 +6,7 @@ from datetime import datetime
 from flask import (
     Blueprint, render_template, request, jsonify, send_file, redirect, url_for,
 )
-from flask_login import login_required
+from flask_login import login_required, current_user
 
 from app.extensions import db
 from app.models.this_year_item import ThisYearItem
@@ -17,6 +17,7 @@ from app.models.live_income import LiveIncome
 from app.models.expense import Expense
 from app.models.sponsor import Sponsor
 from app.models.edition import Edition
+from app.models.membership_fee import MembershipFee
 
 bp = Blueprint("live_event", __name__,
                url_prefix="/live")
@@ -158,6 +159,7 @@ def live_payments():
     int_year = year
     source_year = request.args.get("sy", "").strip()
     search = request.args.get("q", "").strip()
+    show_bad_debt = request.args.get("show_bad_debt", "0") == "1"
     int_source_year = int(source_year) if source_year else None
 
     # Auto-populate search if member_id is provided
@@ -335,6 +337,14 @@ def live_payments():
                or r["name"] in item_match_names
         ]
 
+    # Bad debt filter: hide bad_debt members unless show_bad_debt=1
+    if not show_bad_debt and result:
+        bad_debt_ids = {
+            m.member_id for m in
+            Member.query.filter(Member.bad_debt == True).all()
+        }
+        result = [r for r in result if r["member_id"] not in bad_debt_ids]
+
     # Recent payments
     if int_source_year:
         recent = (
@@ -369,7 +379,8 @@ def live_payments():
         members_with_debt_json=json.dumps(members_with_debt),
         recent_payments=recent,
         year=year, source_year=source_year, search=search,
-        years=years,
+        years=years, show_bad_debt=show_bad_debt,
+        members_json=json.dumps(result, ensure_ascii=False),
     )
 
 
@@ -865,3 +876,58 @@ def live_stats_api():
         "items_left": items_left,
         "expenses": (expenses or 0) + (live_exp or 0),
     })
+
+
+# ════════════════════════════════════════════════════════════════════════
+#  E) 壞帳管理 — Bad Debts
+# ════════════════════════════════════════════════════════════════════════
+
+@bp.route("/bad-debts")
+@login_required
+def live_bad_debts():
+    """壞帳列表 — Members flagged as bad debt."""
+    members = Member.query.filter_by(bad_debt=True).order_by(Member.name).all()
+
+    data = []
+    for m in members:
+        total_due = (
+            db.session.query(db.func.coalesce(db.func.sum(Bid.bid_amount), 0))
+            .filter(Bid.member_id == m.member_id, Bid.bid_amount > 0)
+            .scalar()
+        )
+        total_paid = (
+            db.session.query(db.func.coalesce(db.func.sum(Bid.paid_amount), 0))
+            .filter(Bid.member_id == m.member_id)
+            .scalar()
+        )
+        data.append({
+            "member_id": m.member_id,
+            "name": m.name,
+            "total_due": total_due or 0,
+            "total_paid": total_paid or 0,
+            "unpaid": (total_due or 0) - (total_paid or 0),
+        })
+
+    total_bad_debt = sum(d["unpaid"] for d in data)
+
+    return render_template(
+        "live_event/bad_debts.html",
+        members=data,
+        total_bad_debt=total_bad_debt,
+    )
+
+
+@bp.route("/members/<int:member_id>/toggle-bad-debt", methods=["POST"])
+@login_required
+def live_toggle_bad_debt(member_id):
+    """Toggle a member's bad_debt flag (admin only)."""
+    if current_user.role != "admin":
+        return jsonify({"error": "僅管理員可執行此操作"}), 403
+
+    member = Member.query.filter_by(member_id=member_id).first()
+    if not member:
+        return jsonify({"error": "會員不存在"}), 404
+
+    member.bad_debt = not member.bad_debt
+    db.session.commit()
+    return jsonify({"ok": True, "bad_debt": member.bad_debt})

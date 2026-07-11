@@ -266,6 +266,62 @@ def view_pl():
     )
 
 
+@bp.route("/pl/ledger-data")
+@login_required
+def pl_ledger_data():
+    """Return PL ledger data as JSON — combined PL + DailyEntry rows for a year."""
+    from flask import jsonify, request
+    from app.extensions import db
+    from app.models.pl import PL
+    from app.models.daily_entry import DailyEntry
+
+    year = request.args.get("year", type=int)
+    if not year:
+        return jsonify({"error": "year parameter required"}), 400
+
+    # Query PL rows
+    pl_rows = PL.query.filter(PL.year == year).order_by(PL.subject).all()
+    # Query DailyEntry rows
+    de_rows = DailyEntry.query.filter(DailyEntry.year == year).order_by(DailyEntry.entry_date).all()
+
+    ledger = []
+
+    for r in pl_rows:
+        ledger.append({
+            "date": str(r.year),
+            "type": r.pl_type or "",
+            "subject": r.subject or "",
+            "amount": r.amount_hkd or 0,
+            "payment_method": r.payment_method or "",
+            "notes": "",
+            "source": "PL",
+        })
+
+    for r in de_rows:
+        entry_type = "收入" if r.entry_type == "income" else "支出"
+        ledger.append({
+            "date": str(r.entry_date) if r.entry_date else str(r.year),
+            "type": entry_type,
+            "subject": r.subject or "",
+            "amount": r.amount or 0,
+            "payment_method": r.payment_method or "",
+            "notes": r.notes or "",
+            "source": "DailyEntry",
+        })
+
+    # Sort by date
+    ledger.sort(key=lambda x: x["date"])
+
+    total_income = sum(item["amount"] for item in ledger if item["type"] == "收入")
+    total_expense = sum(item["amount"] for item in ledger if item["type"] == "支出")
+
+    return jsonify({
+        "ledger": ledger,
+        "total_income": total_income,
+        "total_expense": total_expense,
+    })
+
+
 @bp.route("/pl/export")
 @login_required
 def export_pl_excel():
@@ -276,6 +332,8 @@ def export_pl_excel():
     from app.models.this_year_item import ThisYearItem
     from app.models.live_income import LiveIncome
     from app.models.expense import Expense
+    from app.models.daily_entry import DailyEntry
+    from app.models.edition import Edition
     from sqlalchemy import func
     import io
 
@@ -552,6 +610,79 @@ def export_pl_excel():
     ws.column_dimensions["A"].width = 35
     for ci in range(2, 2 + len(selected_years)):
         ws.column_dimensions[chr(64 + ci)].width = 18
+
+    # ── Sheet 2: 細則 Ledger ──
+    ws2 = wb.create_sheet("細則 Ledger")
+    ledger_headers = ["日期", "類型", "科目", "金額", "付款方式", "備註", "來源"]
+    for ci, h in enumerate(ledger_headers, 1):
+        cell = ws2.cell(row=1, column=ci, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center")
+        cell.border = thin_border
+
+    # Query ALL PL rows for selected years
+    all_pl = (
+        PL.query
+        .filter(PL.year.in_(selected_years))
+        .order_by(PL.year, PL.subject)
+        .all()
+    )
+    # Query DailyEntry rows for selected years
+    all_de = (
+        DailyEntry.query
+        .filter(DailyEntry.year.in_(selected_years))
+        .order_by(DailyEntry.year, DailyEntry.entry_date)
+        .all()
+    )
+
+    ledger_rows = []
+    for r in all_pl:
+        ledger_rows.append({
+            "date": str(r.year),
+            "type": r.pl_type or "",
+            "subject": r.subject or "",
+            "amount": r.amount_hkd or 0,
+            "payment_method": r.payment_method or "",
+            "notes": "",
+            "source": "PL",
+        })
+    for r in all_de:
+        entry_type = "收入" if r.entry_type == "income" else "支出"
+        ledger_rows.append({
+            "date": str(r.entry_date) if r.entry_date else str(r.year),
+            "type": entry_type,
+            "subject": r.subject or "",
+            "amount": r.amount or 0,
+            "payment_method": r.payment_method or "",
+            "notes": r.notes or "",
+            "source": "日記帳",
+        })
+
+    ledger_rows.sort(key=lambda x: x["date"])
+
+    for ri, lr in enumerate(ledger_rows, 2):
+        ws2.cell(row=ri, column=1, value=lr["date"]).font = data_font
+        ws2.cell(row=ri, column=1).border = thin_border
+        ws2.cell(row=ri, column=2, value=lr["type"]).font = data_font
+        ws2.cell(row=ri, column=2).border = thin_border
+        ws2.cell(row=ri, column=3, value=lr["subject"]).font = data_font
+        ws2.cell(row=ri, column=3).border = thin_border
+        cell = ws2.cell(row=ri, column=4, value=lr["amount"])
+        cell.font = data_font
+        cell.number_format = money_fmt
+        cell.border = thin_border
+        ws2.cell(row=ri, column=5, value=lr["payment_method"]).font = data_font
+        ws2.cell(row=ri, column=5).border = thin_border
+        ws2.cell(row=ri, column=6, value=lr["notes"]).font = data_font
+        ws2.cell(row=ri, column=6).border = thin_border
+        ws2.cell(row=ri, column=7, value=lr["source"]).font = data_font
+        ws2.cell(row=ri, column=7).border = thin_border
+
+    # Auto-fit column widths for ledger sheet
+    col_widths = [14, 8, 30, 14, 14, 30, 12]
+    for ci, w in enumerate(col_widths, 1):
+        ws2.column_dimensions[chr(64 + ci)].width = w
 
     output = io.BytesIO()
     wb.save(output)

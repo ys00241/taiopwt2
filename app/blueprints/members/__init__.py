@@ -11,6 +11,7 @@ from app.models.bid import Bid
 from app.models.item import Item
 from app.models.live_income import LiveIncome
 from app.models.member import Member
+from app.models.membership_fee import MembershipFee
 
 bp = Blueprint("members", __name__)
 
@@ -429,3 +430,105 @@ def import_members():
     return jsonify(
         {"ok": True, "count": count, "errors": errors}
     )
+
+
+# ════════════════════════════════════════════════════════════════════════
+#  Membership Fee CRUD (會費管理)
+# ════════════════════════════════════════════════════════════════════════
+
+@bp.route("/members/<int:member_id>/fees")
+@login_required
+def member_fees_list(member_id):
+    """List membership fees for a member."""
+    fees = (
+        MembershipFee.query
+        .filter_by(member_id=member_id)
+        .order_by(MembershipFee.year.desc())
+        .all()
+    )
+    return jsonify({
+        "fees": [
+            {
+                "id": f.id,
+                "year": f.year,
+                "amount": f.amount or 0,
+                "payment_method": f.payment_method or "",
+                "handler": f.handler or "",
+                "notes": f.notes or "",
+                "created_at": f.created_at.isoformat() if f.created_at else None,
+            }
+            for f in fees
+        ]
+    })
+
+
+@bp.route("/members/<int:member_id>/fees/add", methods=["POST"])
+@login_required
+def member_fees_add(member_id):
+    """Add a membership fee record."""
+    member = Member.query.filter_by(member_id=member_id).first()
+    if not member:
+        return jsonify({"error": "會員不存在"}), 404
+
+    year = int(request.form.get("year", 0))
+    amount = float(request.form.get("amount", 0) or 0)
+    payment_method = request.form.get("payment_method", "").strip()
+    handler = request.form.get("handler", "").strip()
+    notes = request.form.get("notes", "").strip()
+
+    fee = MembershipFee(
+        member_id=member_id,
+        year=year,
+        amount=amount,
+        payment_method=payment_method,
+        handler=handler,
+        notes=notes,
+    )
+    db.session.add(fee)
+    db.session.commit()
+    return jsonify({"ok": True, "fee_id": fee.id})
+
+
+@bp.route("/members/<int:member_id>/fees/<fee_id>/edit", methods=["POST"])
+@login_required
+def member_fees_edit(member_id, fee_id):
+    """Edit a membership fee record."""
+    fee = db.session.get(MembershipFee, fee_id)
+    if not fee or fee.member_id != member_id:
+        return jsonify({"error": "會費記錄不存在"}), 404
+
+    year = request.form.get("year")
+    if year:
+        fee.year = int(year)
+    amount = request.form.get("amount")
+    if amount:
+        fee.amount = float(amount)
+    payment_method = request.form.get("payment_method")
+    if payment_method is not None:
+        fee.payment_method = payment_method.strip()
+    handler = request.form.get("handler")
+    if handler is not None:
+        fee.handler = handler.strip()
+    notes = request.form.get("notes")
+    if notes is not None:
+        fee.notes = notes.strip()
+
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/members/<int:member_id>/fees/<fee_id>/delete", methods=["POST"])
+@login_required
+def member_fees_delete(member_id, fee_id):
+    """Delete a membership fee record (admin only)."""
+    from flask_login import current_user
+    if current_user.role != "admin":
+        return jsonify({"error": "僅管理員可執行此操作"}), 403
+
+    fee = db.session.get(MembershipFee, fee_id)
+    if not fee or fee.member_id != member_id:
+        return jsonify({"error": "會費記錄不存在"}), 404
+
+    db.session.delete(fee)
+    db.session.commit()
+    return jsonify({"ok": True})

@@ -17,12 +17,16 @@ class Member(db.Model):
     first_year = db.Column(db.Integer, comment="加入年份")
     member_type = db.Column(db.String(20), default='member', comment="會員類型: member=會員, friend=會友")
     status = db.Column(db.String(20), default='active', comment="狀態: active=有效, inactive=已退")
+    bad_debt = db.Column(db.Boolean, default=False, comment="壞帳標記")
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
 
     # Relationships
     bids = db.relationship("Bid", back_populates="member", lazy="dynamic",
                            foreign_keys="Bid.member_id")
+    membership_fees = db.relationship("MembershipFee", back_populates="member",
+                                      lazy="dynamic",
+                                      foreign_keys="MembershipFee.member_id")
 
     def __repr__(self) -> str:
         return f"<Member {self.member_id}: {self.name}>"

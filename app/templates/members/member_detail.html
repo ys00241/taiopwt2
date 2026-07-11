@@ -231,6 +231,23 @@
   </details>
   {% endif %}
 
+  <!-- ═══ Membership Fees ═══ -->
+  <div class="imperial-card mt-lg">
+    <div class="flex items-center justify-between p-lg pb-md" style="border-bottom: 1px solid var(--outline-variant);">
+      <h3 class="font-headline-md" style="color: var(--on-surface); margin: 0;">會費記錄</h3>
+      <button class="btn-primary" onclick="openFeeModal()">
+        <span class="material-symbols-outlined">add</span>
+        加會費
+      </button>
+    </div>
+    <div id="feeList">
+      <div class="flex flex-col items-center py-xl" style="color: var(--on-surface-variant);">
+        <span class="material-symbols-outlined" style="font-size: 2.5rem; margin-bottom: 0.5rem;">payments</span>
+        <p class="font-body-md">載入中...</p>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- ═══ Edit Member Modal ═══ -->
@@ -515,7 +532,195 @@
         if (e.target === this) closeEditModal();
       });
     }
+  document.addEventListener('DOMContentLoaded', async function () {
+    console.log('Member detail loaded — {{ member.name }}');
+    await loadFees({{ member.member_id }});
   });
+
+  // ════════════════════════════════════════════
+  // Membership Fees
+  // ════════════════════════════════════════════
+
+  async function loadFees(memberId) {
+    const el = document.getElementById('feeList');
+    try {
+      const resp = await fetch('/members/' + memberId + '/fees');
+      const data = await resp.json();
+      const fees = data.fees || data || [];
+      if (fees.length === 0) {
+        el.innerHTML = `<div class="flex flex-col items-center py-xl" style="color: var(--on-surface-variant);">
+          <span class="material-symbols-outlined" style="font-size: 2.5rem; margin-bottom: 0.5rem;">payments</span>
+          <p class="font-body-md">暫無會費記錄</p>
+        </div>`;
+        return;
+      }
+      el.innerHTML = `<div class="overflow-x-auto">
+        <table class="imperial-table">
+          <thead>
+            <tr>
+              <th>年份</th>
+              <th>金額</th>
+              <th>付款方式</th>
+              <th>經手人</th>
+              <th>備註</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${fees.map(f => `
+              <tr>
+                <td><span class="chip chip-gold">${f.year} 年</span></td>
+                <td style="font-weight: 500; color: #166534;">$${f.amount.toLocaleString()}</td>
+                <td>${f.payment_method || '—'}</td>
+                <td>${f.handler || '—'}</td>
+                <td class="truncate" style="max-width: 150px;">${f.notes || '—'}</td>
+                <td>
+                  <button class="icon-btn" onclick="editFee('${f.id}', ${f.year}, ${f.amount}, '${(f.payment_method||'').replace(/'/g, "\\'")}', '${(f.handler||'').replace(/'/g, "\\'")}', '${(f.notes||'').replace(/'/g, "\\'")}')" title="編輯">
+                    <span class="material-symbols-outlined" style="font-size: 1.125rem;">edit</span>
+                  </button>
+                  <button class="icon-btn" onclick="deleteFee('${f.id}')" title="刪除" style="color: var(--tertiary);">
+                    <span class="material-symbols-outlined" style="font-size: 1.125rem;">delete</span>
+                  </button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>`;
+    } catch (err) {
+      el.innerHTML = `<div class="flex flex-col items-center py-xl" style="color: var(--on-surface-variant);">
+        <span class="material-symbols-outlined" style="font-size: 2.5rem; margin-bottom: 0.5rem;">error</span>
+        <p class="font-body-md">載入失敗</p>
+      </div>`;
+    }
+  }
+
+  // ════════════════════════════════════════════
+  // Fee Modal CRUD
+  // ════════════════════════════════════════════
+
+  let feeModalMode = 'add';
+  let feeEditId = null;
+
+  function openFeeModal(feeData) {
+    const overlay = document.getElementById('feeModal');
+    if (!overlay) {
+      // Create modal dynamically
+      const html = `
+        <div class="bottom-sheet-overlay open" id="feeModal" style="z-index: 400;">
+          <div class="bottom-sheet">
+            <div class="bottom-sheet-handle"></div>
+            <div class="flex items-center justify-between mb-md">
+              <h2 class="font-headline-md" id="feeModalTitle" style="color: var(--on-surface);">加會費</h2>
+              <button class="icon-btn" onclick="closeFeeModal()">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <form id="feeForm" onsubmit="return submitFee(event)">
+              <div class="mb-md">
+                <label class="form-label">年份</label>
+                <input type="number" class="form-input" name="year" id="feeYear" required min="2020" max="2099">
+              </div>
+              <div class="mb-md">
+                <label class="form-label">金額 (HKD)</label>
+                <input type="number" class="form-input" name="amount" id="feeAmount" required min="0" step="0.01">
+              </div>
+              <div class="mb-md">
+                <label class="form-label">付款方式</label>
+                <select class="form-input" name="payment_method" id="feePaymentMethod">
+                  <option value="">—</option>
+                  <option value="CASH">現金</option>
+                  <option value="CHQ">支票</option>
+                  <option value="轉數快">轉數快</option>
+                </select>
+              </div>
+              <div class="mb-md">
+                <label class="form-label">經手人</label>
+                <input type="text" class="form-input" name="handler" id="feeHandler">
+              </div>
+              <div class="mb-lg">
+                <label class="form-label">備註</label>
+                <textarea class="form-input" name="notes" id="feeNotes" rows="2"></textarea>
+              </div>
+              <button type="submit" class="btn-pay-confirm" style="background: var(--primary); color: var(--on-primary);">
+                <span class="material-symbols-outlined">check_circle</span>
+                儲存
+              </button>
+            </form>
+          </div>
+        </div>
+      `;
+      document.body.insertAdjacentHTML('beforeend', html);
+    }
+    document.getElementById('feeModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeFeeModal() {
+    const modal = document.getElementById('feeModal');
+    if (modal) {
+      modal.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+    feeModalMode = 'add';
+    feeEditId = null;
+    document.getElementById('feeForm')?.reset();
+  }
+
+  function editFee(id, year, amount, paymentMethod, handler, notes) {
+    feeModalMode = 'edit';
+    feeEditId = id;
+    openFeeModal();
+    document.getElementById('feeModalTitle').textContent = '編輯會費';
+    document.getElementById('feeYear').value = year;
+    document.getElementById('feeAmount').value = amount;
+    document.getElementById('feePaymentMethod').value = paymentMethod;
+    document.getElementById('feeHandler').value = handler;
+    document.getElementById('feeNotes').value = notes;
+  }
+
+  async function submitFee(event) {
+    event.preventDefault();
+    const memberId = {{ member.member_id }};
+    const form = document.getElementById('feeForm');
+    const data = new FormData(form);
+
+    let url, method;
+    if (feeModalMode === 'edit' && feeEditId) {
+      url = '/members/' + memberId + '/fees/' + feeEditId + '/edit';
+    } else {
+      url = '/members/' + memberId + '/fees/add';
+    }
+
+    try {
+      const resp = await fetch(url, { method: 'POST', body: data });
+      const result = await resp.json();
+      if (result.ok) {
+        closeFeeModal();
+        await loadFees(memberId);
+      } else {
+        alert(result.error || '操作失敗');
+      }
+    } catch (err) {
+      alert('網絡錯誤');
+    }
+  }
+
+  async function deleteFee(id) {
+    if (!confirm('確定刪除此會費記錄？')) return;
+    const memberId = {{ member.member_id }};
+    try {
+      const resp = await fetch('/members/' + memberId + '/fees/' + id + '/delete', { method: 'POST' });
+      const result = await resp.json();
+      if (result.ok) {
+        await loadFees(memberId);
+      } else {
+        alert(result.error || '刪除失敗');
+      }
+    } catch (err) {
+      alert('網絡錯誤');
+    }
+  }
 </script>
 
 <script>

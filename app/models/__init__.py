@@ -25,6 +25,7 @@ from app.models.live_expense import LiveExpense
 
 # New feature models
 from app.models.daily_entry import DailyEntry
+from app.models.membership_fee import MembershipFee
 from app.models.photo import Photo
 from app.models.photo_link import PhotoLink
 
@@ -46,4 +47,5 @@ __all__ = [
     "Photo",
     "PhotoLink",
     "User",
+    "MembershipFee",
 ]
