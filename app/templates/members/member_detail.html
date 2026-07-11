@@ -143,13 +143,14 @@
             {% endif %}
           </td>
           <td>
-            <div class="font-label-lg" style="color: var(--primary); cursor: pointer;"
-                 {% if b.item_id and b.item_id > 0 %}onclick="openItemDetailFromDb({{ b.item_id }})"{% endif %}>
+            <a href="/pre/items?highlight={{ b.item_id }}"
+               class="font-label-lg" style="color: var(--primary); text-decoration: none; cursor: pointer;"
+               {% if b.item_id and b.item_id > 0 %}target="_blank"{% endif %}>
               {% if b.name_1_auspicious %}{{ b.name_1_auspicious }}{% endif %}
               {% if b.name_1_auspicious and b.name_2_description %} · {% endif %}
               {% if b.name_2_description %}{{ b.name_2_description }}{% endif %}
               {% if not b.name_1_auspicious and not b.name_2_description %}—{% endif %}
-            </div>
+            </a>
             {% if b.bid_no %}
             <div class="font-body-sm" style="color: var(--on-surface-variant);">投標 #{{ b.bid_no }}</div>
             {% endif %}
@@ -418,9 +419,8 @@ function showDebtModal(memberId, memberName) {
           html += '<tr>' +
             '<td><span class="chip chip-gold">' + b.year + ' 年</span></td>' +
             '<td>' +
-            '<div class="font-label-lg" style="color: var(--primary); cursor: pointer;"' +
-            (b.item_id ? ' onclick="event.stopPropagation(); openItemDetailFromDb(' + b.item_id + ')"' : '') +
-            '>' + (b.item_name || '—') + '</div></td>' +
+            (b.item_id ? '<a href="/pre/items?highlight=' + b.item_id + '" target="_blank" class="font-label-lg" style="color: var(--primary); text-decoration: none;">' : '') +
+            (b.item_name || '—') + (b.item_id ? '</a>' : '') + '</td>' +
             '<td style="text-align:right; font-weight:500;">$' + b.bid_amount + '</td>' +
             '<td style="text-align:right;">' +
             (b.paid_amount > 0

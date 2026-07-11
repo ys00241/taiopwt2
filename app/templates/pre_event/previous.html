@@ -391,8 +391,8 @@ function showDebtModal(memberId, memberName) {
             '<td><span class="chip chip-gold">' + b.year + ' 年</span></td>' +
             '<td>' +
             '<div class="font-label-lg" style="color: var(--primary); cursor: pointer;"' +
-            (b.item_id ? ' onclick="event.stopPropagation(); openItemDetailFromDb(' + b.item_id + ')"' : '') +
-            '>' + (b.item_name || '—') + '</div></td>' +
+            (b.item_id ? '<a href="/pre/items?highlight=' + b.item_id + '" target="_blank" class="font-label-lg" style="color: var(--primary); text-decoration: none;">' : '') +
+            (b.item_name || '—') + (b.item_id ? '</a>' : '') + '</td>' +
             '<td style="text-align:right; font-weight:500;">$' + b.bid_amount + '</td>' +
             '<td style="text-align:right;">' +
             (b.paid_amount > 0
