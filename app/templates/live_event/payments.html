@@ -665,6 +665,38 @@
   }
 
   // ════════════════════════════════════════
+  // Submit payment via AJAX (no page navigation)
+  // ════════════════════════════════════════
+  document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('paymentForm');
+    if (form) {
+      form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const btn = form.querySelector('.btn-pay-confirm');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-symbols-outlined">sync</span> 處理中...';
+        try {
+          const resp = await fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form),
+          });
+          const data = await resp.json();
+          if (data.ok) {
+            closePaymentSheet();
+            window.location.reload();
+          } else {
+            alert('收款失敗: ' + (data.error || '未知錯誤'));
+          }
+        } catch (err) {
+          alert('網絡錯誤: ' + err.message);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    }
+  });
+
+  // ════════════════════════════════════════
   // Auto-search on page load (member_id
   // from clickable debt links elsewhere)
   // ════════════════════════════════════════
