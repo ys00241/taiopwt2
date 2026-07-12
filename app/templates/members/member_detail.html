@@ -281,12 +281,33 @@
           <label class="form-label" for="edit_address">地址</label>
           <input class="form-input" type="text" id="edit_address" name="home_address" value="{{ member.home_address or '' }}">
         </div>
-        <div>
-          <label class="form-label" for="edit_first_year">加入年份</label>
-          <input class="form-input" type="number" id="edit_first_year" name="first_year" min="1900" max="2099"
-                 value="{{ member.first_year or '' }}">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-md">
+          <div>
+            <label class="form-label" for="edit_name_alais">別名</label>
+            <input class="form-input" type="text" id="edit_name_alais" name="name_alais" value="{{ member.name_alais or '' }}">
+          </div>
+          <div>
+            <label class="form-label" for="edit_group_name">群體名</label>
+            <input class="form-input" type="text" id="edit_group_name" name="group_name" value="{{ member.group_name or '' }}">
+          </div>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-md">
+          <div>
+            <label class="form-label" for="edit_referrer">介紹人</label>
+            <input class="form-input" type="text" id="edit_referrer" name="referrer" value="{{ member.referrer or '' }}">
+          </div>
+          <div>
+            <label class="form-label" for="edit_first_year">加入年份</label>
+            <input class="form-input" type="number" id="edit_first_year" name="first_year" min="1900" max="2099"
+                   value="{{ member.first_year or '' }}">
+          </div>
+        </div>
+        <div>
+          <label class="form-label" for="edit_end_year">退會年份</label>
+          <input class="form-input" type="number" id="edit_end_year" name="end_year" min="1900" max="2099"
+                 value="{{ member.end_year or '' }}">
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-md">
           <div>
             <label class="form-label" for="edit_member_type">會員類型</label>
             <select class="form-input" id="edit_member_type" name="member_type">
@@ -299,6 +320,13 @@
             <select class="form-input" id="edit_status" name="status">
               <option value="active" {% if member.status == 'active' or not member.status %}selected{% endif %}>有效</option>
               <option value="inactive" {% if member.status == 'inactive' %}selected{% endif %}>已退</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" for="edit_bad_debt">壞帳</label>
+            <select class="form-input" id="edit_bad_debt" name="bad_debt">
+              <option value="0" {% if not member.bad_debt %}selected{% endif %}>否</option>
+              <option value="1" {% if member.bad_debt %}selected{% endif %}>是</option>
             </select>
           </div>
         </div>

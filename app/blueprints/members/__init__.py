@@ -295,9 +295,22 @@ def edit_member(member_id):
     member.home_address = (
         request.form.get("home_address", "").strip() or None
     )
+    member.name_alais = (
+        request.form.get("name_alais", "").strip() or None
+    )
+    member.group_name = (
+        request.form.get("group_name", "").strip() or None
+    )
+    member.referrer = (
+        request.form.get("referrer", "").strip() or None
+    )
     first_year_str = request.form.get("first_year", "").strip()
     member.first_year = (
         int(first_year_str) if first_year_str else None
+    )
+    end_year_str = request.form.get("end_year", "").strip()
+    member.end_year = (
+        int(end_year_str) if end_year_str else None
     )
     member_type = request.form.get("member_type", "").strip()
     if member_type in ("member", "friend"):
@@ -305,6 +318,8 @@ def edit_member(member_id):
     status = request.form.get("status", "").strip()
     if status in ("active", "inactive"):
         member.status = status
+    bad_debt = request.form.get("bad_debt", "0").strip()
+    member.bad_debt = bad_debt == "1"
 
     db.session.commit()
     return jsonify({"ok": True})
