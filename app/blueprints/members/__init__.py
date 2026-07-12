@@ -338,12 +338,17 @@ def export_members():
         [
             "member_id",
             "name",
+            "name_alais",
+            "group",
+            "referrer",
             "phone",
             "phone_2",
             "home_address",
             "first_year",
+            "end_year",
             "member_type",
             "status",
+            "bad_debt",
         ]
     )
     for m in members:
@@ -351,12 +356,17 @@ def export_members():
             [
                 m.member_id,
                 m.name,
+                m.name_alais or "",
+                m.group_name or "",
+                m.referrer or "",
                 m.phone or "",
                 m.phone_2 or "",
                 m.home_address or "",
                 m.first_year or "",
+                m.end_year or "",
                 m.member_type or "member",
                 m.status or "active",
+                1 if m.bad_debt else 0,
             ]
         )
 
@@ -397,10 +407,28 @@ def import_members():
             errors.append(f"第{row_idx}行: 姓名為必填")
             continue
 
+        # Handle refererr typo in CSV header
+        referrer = (row.get("refererr") or row.get("referrer") or "").strip()
+        group_name = (row.get("Group") or row.get("group") or "").strip()
+
+        # Bad debt
+        bad_debt_val = (row.get("bad_debt") or "").strip()
+        bad_debt = bad_debt_val == "1" or bad_debt_val.lower() == "true"
+
+        # End year
+        end_year_str = (row.get("end_year") or "").strip()
+        end_year = int(end_year_str) if end_year_str else None
+
+        # Name alais
+        name_alais = (row.get("name_alais") or "").strip()
+
         member = Member(
             id=str(uuid.uuid4()),
             member_id=next_id,
             name=name,
+            name_alais=name_alais or None,
+            group_name=group_name or None,
+            referrer=referrer or None,
             phone=(row.get("phone") or "").strip() or None,
             phone_2=(row.get("phone_2") or "").strip() or None,
             home_address=(
@@ -411,6 +439,8 @@ def import_members():
                 if row.get("first_year", "").strip()
                 else None
             ),
+            end_year=end_year,
+            bad_debt=bad_debt,
             member_type=(
                 row.get("member_type", "member").strip()
                 if row.get("member_type", "").strip() in ("member", "friend")
