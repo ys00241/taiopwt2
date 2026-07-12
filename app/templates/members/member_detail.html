@@ -532,6 +532,7 @@
         if (e.target === this) closeEditModal();
       });
     }
+  });
   document.addEventListener('DOMContentLoaded', async function () {
     console.log('Member detail loaded — {{ member.name }}');
     await loadFees({{ member.member_id }});
