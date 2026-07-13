@@ -8,10 +8,14 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app/ ./app/
-COPY run.py config.py seed_users.py ./
+COPY run.py config.py ./
+COPY scripts/ ./scripts/
+COPY docker-entrypoint.sh ./
 
-RUN mkdir -p /app/data /app/uploads /app/csv_exports /app/uploads/items
+RUN chmod +x docker-entrypoint.sh && mkdir -p /app/data /app/uploads /app/csv_exports /app/uploads/items
 
 EXPOSE 5000
 
-CMD ["python", "run.py"]
+ENV FLASK_ENV=production
+
+ENTRYPOINT ["./docker-entrypoint.sh"]
