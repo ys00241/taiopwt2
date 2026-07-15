@@ -1,8 +1,6 @@
 services:
   taio_pwt:
-    build:
-      context: ./
-      dockerfile: Dockerfile
+    build: .
     container_name: taio_pwt
     ports:
       - "2004:5000"
