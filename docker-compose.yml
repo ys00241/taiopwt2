@@ -1,7 +1,7 @@
 services:
   taio_pwt:
     build:
-      context: .
+      context: ./
       dockerfile: Dockerfile
     container_name: taio_pwt
     ports:
