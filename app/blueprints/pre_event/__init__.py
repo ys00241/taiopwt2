@@ -224,9 +224,14 @@ def pre_items_import_csv():
             year=year,
             sticker_no=sticker_no,
             item_name=item_name,
+            actual_item=row.get("actual_item", "").strip(),
             category=row.get("category", "").strip(),
             cost=float(row.get("cost", 0) or 0),
             source=row.get("source", "").strip(),
+            bidder_name=row.get("bidder_name", "").strip(),
+            bid_amount=float(row.get("bid_amount", 0) or 0),
+            handler=row.get("handler", "").strip(),
+            photo_codes=row.get("photo_codes", "").strip(),
             notes=row.get("notes", "").strip(),
         )
         db.session.add(item)
@@ -234,6 +239,49 @@ def pre_items_import_csv():
 
     db.session.commit()
     return jsonify({"ok": True, "count": count})
+
+
+@bp.route("/items/export-csv")
+@login_required
+def pre_items_export_csv():
+    """Export this-year items as CSV (matching import format)."""
+    import csv as csv_mod
+    import io
+
+    year = int(request.args.get("year", datetime.now().strftime("%Y")))
+    items = (
+        ThisYearItem.query
+        .filter_by(year=year)
+        .order_by(ThisYearItem.sticker_no)
+        .all()
+    )
+
+    output = io.StringIO()
+    writer = csv_mod.writer(output)
+    # Headers matching import CSV format
+    writer.writerow(["item_name", "category", "cost", "source", "notes", "bidder_name", "bid_amount", "actual_item",
+                      "handler", "photo_codes", "sticker_no"])
+    for item in items:
+        writer.writerow([
+            item.item_name or "",
+            item.category or "",
+            item.cost or 0,
+            item.source or "",
+            item.notes or "",
+            item.bidder_name or "",
+            item.bid_amount or 0,
+            item.actual_item or "",
+            item.handler or "",
+            item.photo_codes or "",
+            item.sticker_no or "",
+        ])
+
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv; charset=utf-8-sig",
+        headers={"Content-Disposition": f'attachment; filename="今年聖物_{year}.csv"'},
+    )
 
 
 @bp.route("/items/export-excel")
