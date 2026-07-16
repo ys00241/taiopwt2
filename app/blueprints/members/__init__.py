@@ -53,6 +53,14 @@ def list_members():
         paid_query = paid_query.filter(Bid.year == year)
     paid_sub = paid_query.group_by(Bid.member_id).subquery()
 
+    fee_query = db.session.query(
+        MembershipFee.member_id,
+        func.coalesce(func.sum(MembershipFee.amount), 0).label("total_fee"),
+    )
+    if year > 0:
+        fee_query = fee_query.filter(MembershipFee.year == year)
+    fee_sub = fee_query.group_by(MembershipFee.member_id).subquery()
+
     last_pay_sub = (
         db.session.query(
             LiveIncome.member_id,
@@ -78,10 +86,12 @@ def list_members():
             Member.status,
             func.coalesce(due_sub.c.total_due, 0).label("total_due"),
             func.coalesce(paid_sub.c.total_paid, 0).label("total_paid"),
+            func.coalesce(fee_sub.c.total_fee, 0).label("total_fee"),
             last_pay_sub.c.last_pay_date,
         )
         .outerjoin(due_sub, Member.member_id == due_sub.c.member_id)
         .outerjoin(paid_sub, Member.member_id == paid_sub.c.member_id)
+        .outerjoin(fee_sub, Member.member_id == fee_sub.c.member_id)
         .outerjoin(
             last_pay_sub, Member.member_id == last_pay_sub.c.member_id
         )
@@ -105,6 +115,8 @@ def list_members():
                 "status": r.status or "active",
                 "total_due": float(r.total_due),
                 "total_paid": float(r.total_paid),
+                "total_fee": float(r.total_fee),
+                "total_outstanding": float(r.total_due) - float(r.total_paid) + float(r.total_fee),
                 "last_pay_date": r.last_pay_date,
             }
         )
@@ -145,13 +157,13 @@ def list_members():
         members_list = [
             m
             for m in members_list
-            if (m["total_due"] - m["total_paid"]) > 0
+            if m["total_outstanding"] > 0
         ]
     elif unpaid_filter == "no":
         members_list = [
             m
             for m in members_list
-            if (m["total_due"] - m["total_paid"]) <= 0
+            if m["total_outstanding"] <= 0
         ]
 
     # Member type filter

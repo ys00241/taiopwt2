@@ -111,8 +111,9 @@
             <div class="font-body-sm" style="color: var(--on-surface-variant);">{{ m.phone or '—' }}</div>
           </td>
           <td style="text-align: right; font-weight: 500;">
-            {% if m.total_due > 0 %}
-            ${{ m.total_due|int }}
+            {% set combined_due = m.total_due + m.total_fee %}
+            {% if combined_due > 0 %}
+            ${{ combined_due|int }}
             {% else %}
             <span style="color: var(--on-surface-variant);">—</span>
             {% endif %}
@@ -125,22 +126,22 @@
             {% endif %}
           </td>
           <td style="text-align: right;">
-            {% set unpaid = m.total_due - m.total_paid %}
-            {% if unpaid > 0 %}
+            {% if m.total_outstanding > 0 %}
             <a href="/live/payments?year={{ current_year }}&member_id={{ m.member_id }}"
                onclick="event.stopPropagation();" style="color: var(--tertiary); font-weight: 600; text-decoration: none; cursor: pointer;">
-              ${{ unpaid|int }}
+              ${{ m.total_outstanding|int }}
             </a>
             {% else %}
             <span style="color: var(--on-surface-variant);">$0</span>
             {% endif %}
           </td>
           <td>
-            {% if m.total_due == 0 %}
+            {% set combined_due = m.total_due + m.total_fee %}
+            {% if combined_due == 0 %}
             <span class="chip chip-green">無紀錄</span>
-            {% elif unpaid <= 0 %}
+            {% elif m.total_outstanding <= 0 %}
             <span class="chip chip-green">已清</span>
-            {% elif m.total_paid > 0 and unpaid > 0 %}
+            {% elif m.total_paid > 0 and m.total_outstanding > 0 %}
             <span class="chip chip-gold">部分</span>
             {% else %}
             <span class="chip chip-red">未繳</span>
@@ -185,13 +186,13 @@
             {% else %}
             <span class="chip" style="background: #e8f5e9; color: #2e7d32; font-size: 0.65rem;">有效</span>
             {% endif %}
-            {% set unpaid = m.total_due - m.total_paid %}
-          {% if unpaid > 0 %}
+            {% set combined_due = m.total_due + m.total_fee %}
+          {% if m.total_outstanding > 0 %}
           <a href="/live/payments?year={{ current_year }}&member_id={{ m.member_id }}"
              onclick="event.stopPropagation();" style="text-decoration: none;">
-            <span class="chip chip-red">${{ unpaid|int }}</span>
+            <span class="chip chip-red">${{ m.total_outstanding|int }}</span>
           </a>
-          {% elif m.total_due > 0 %}
+          {% elif combined_due > 0 %}
           <span class="chip chip-green">已清</span>
           {% else %}
           <span class="chip" style="background: var(--surface-container); color: var(--on-surface-variant);">無</span>
