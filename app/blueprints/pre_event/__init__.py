@@ -208,9 +208,47 @@ def pre_items_import_csv():
     base = (year % 100) * 100
     next_sticker = 1
 
+    # ── Header mapping: support Chinese (Excel export) + English (CSV export) ──
+    HEADER_MAP = {
+        "item_name": "item_name",
+        "聖物名稱": "item_name",
+        "意頭名": "item_name",
+        "actual_item": "actual_item",
+        "實際物品": "actual_item",
+        "category": "category",
+        "類別": "category",
+        "cost": "cost",
+        "成本": "cost",
+        "source": "source",
+        "來源": "source",
+        "bidder_name": "bidder_name",
+        "投得者": "bidder_name",
+        "bid_amount": "bid_amount",
+        "投標金額": "bid_amount",
+        "競投金額": "bid_amount",
+        "handler": "handler",
+        "經手人": "handler",
+        "photo_codes": "photo_codes",
+        "相號": "photo_codes",
+        "notes": "notes",
+        "備註": "notes",
+        "sticker_no": "sticker_no",
+        "貼紙#": "sticker_no",
+        "貼紙編號": "sticker_no",
+    }
+
+    def val(key):
+        """Get value from row using any supported header name."""
+        for alias, canon in HEADER_MAP.items():
+            if canon == key:
+                v = row.get(alias)
+                if v is not None:
+                    return v.strip()
+        return ""
+
     count = 0
     for row in reader:
-        item_name = row.get("item_name", "").strip()
+        item_name = val("item_name")
         if not item_name:
             continue
         # Auto-assign sticker: YY## format, skip numbers ending in 4
@@ -224,15 +262,15 @@ def pre_items_import_csv():
             year=year,
             sticker_no=sticker_no,
             item_name=item_name,
-            actual_item=row.get("actual_item", "").strip(),
-            category=row.get("category", "").strip(),
-            cost=float(row.get("cost", 0) or 0),
-            source=row.get("source", "").strip(),
-            bidder_name=row.get("bidder_name", "").strip(),
-            bid_amount=float(row.get("bid_amount", 0) or 0),
-            handler=row.get("handler", "").strip(),
-            photo_codes=row.get("photo_codes", "").strip(),
-            notes=row.get("notes", "").strip(),
+            actual_item=val("actual_item"),
+            category=val("category"),
+            cost=float(val("cost") or 0),
+            source=val("source"),
+            bidder_name=val("bidder_name"),
+            bid_amount=float(val("bid_amount") or 0),
+            handler=val("handler"),
+            photo_codes=val("photo_codes"),
+            notes=val("notes"),
         )
         db.session.add(item)
         count += 1
