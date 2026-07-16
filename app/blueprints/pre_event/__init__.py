@@ -256,29 +256,30 @@ def pre_items_export_csv():
         .all()
     )
 
-    output = io.StringIO()
-    writer = csv_mod.writer(output)
-    # Headers matching import CSV format
-    writer.writerow(["item_name", "category", "cost", "source", "notes", "bidder_name", "bid_amount", "actual_item",
-                      "handler", "photo_codes", "sticker_no"])
+    buf = io.StringIO()
+    # Write BOM for Excel to recognise UTF-8
+    writer = csv_mod.writer(buf)
+    # Headers — same names as import CSV route reads
+    writer.writerow(["item_name", "actual_item", "category", "cost", "source",
+                      "bidder_name", "bid_amount", "handler", "photo_codes", "notes"])
     for item in items:
         writer.writerow([
             item.item_name or "",
+            item.actual_item or "",
             item.category or "",
             item.cost or 0,
             item.source or "",
-            item.notes or "",
             item.bidder_name or "",
             item.bid_amount or 0,
-            item.actual_item or "",
             item.handler or "",
             item.photo_codes or "",
-            item.sticker_no or "",
+            item.notes or "",
         ])
 
-    output.seek(0)
+    content = "\ufeff" + buf.getvalue()  # BOM prefix
+    buf.close()
     return Response(
-        output.getvalue(),
+        content,
         mimetype="text/csv; charset=utf-8-sig",
         headers={"Content-Disposition": f'attachment; filename="今年聖物_{year}.csv"'},
     )
