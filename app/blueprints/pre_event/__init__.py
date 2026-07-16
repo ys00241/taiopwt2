@@ -187,26 +187,17 @@ def pre_items_delete(item_id):
 @bp.route("/items/import-csv", methods=["POST"])
 @login_required
 def pre_items_import_csv():
-    """Import this_year_items from CSV with auto sticker assignment."""
+    """Import this_year_items from CSV or Excel (.xlsx) with auto sticker assignment."""
     import csv as csv_mod
     import io
+    from openpyxl import load_workbook
 
     f = request.files.get("file")
     if not f:
         return jsonify({"error": "No file"}), 400
 
     year = int(request.form.get("year", datetime.now().strftime("%Y")))
-    content = f.read().decode("utf-8-sig")
-    reader = csv_mod.DictReader(io.StringIO(content))
-
-    # Get used sticker numbers for this year
-    used = {
-        r[0] for r in db.session.query(ThisYearItem.sticker_no)
-        .filter(ThisYearItem.year == year, ThisYearItem.sticker_no.isnot(None))
-        .all()
-    }
-    base = (year % 100) * 100
-    next_sticker = 1
+    filename = f.filename.lower()
 
     # ── 統一表頭 (Format 3) ──
     HEADER_MAP = {
@@ -223,18 +214,69 @@ def pre_items_import_csv():
         "貼紙編號": "sticker_no",
     }
 
-    def val(key):
-        """Get value from row using any supported header name."""
-        for alias, canon in HEADER_MAP.items():
-            if canon == key:
-                v = row.get(alias)
-                if v is not None:
-                    return v.strip()
-        return ""
+    rows_data = []
+
+    if filename.endswith(".xlsx"):
+        # ── Excel import: header at row 3, data from row 4 ──
+        wb = load_workbook(f, data_only=True)
+        ws = wb.active
+        # Read headers from row 3
+        headers_raw = {}
+        for col in range(1, ws.max_column + 1):
+            h = ws.cell(row=3, column=col).value
+            if h:
+                h = str(h).strip()
+                for alias, canon in HEADER_MAP.items():
+                    if h == alias:
+                        headers_raw[col] = canon
+                        break
+        if not headers_raw:
+            return jsonify({"ok": False, "error": "Excel header row (row 3) not recognised"}), 400
+
+        for r in range(4, ws.max_row + 1):
+            row = {}
+            for col, canon in headers_raw.items():
+                val = ws.cell(row=r, column=col).value
+                row[canon] = str(val).strip() if val is not None else ""
+            rows_data.append(row)
+        wb.close()
+
+    else:
+        # ── CSV import: header at row 1, data from row 2 ──
+        content = f.read().decode("utf-8-sig")
+        reader = csv_mod.DictReader(io.StringIO(content))
+        if not reader.fieldnames:
+            return jsonify({"ok": False, "error": "Empty or invalid CSV"}), 400
+
+        # Map CSV headers (Format 3 Chinese) to canonical field names
+        field_map = {}
+        for fn in reader.fieldnames:
+            fn_clean = fn.strip()
+            if fn_clean in HEADER_MAP:
+                field_map[fn_clean] = HEADER_MAP[fn_clean]
+
+        if not field_map:
+            return jsonify({"ok": False, "error": "No recognised headers in CSV"}), 400
+
+        for csv_row in reader:
+            row = {}
+            for alias, canon in field_map.items():
+                val = csv_row.get(alias)
+                row[canon] = val.strip() if val else ""
+            rows_data.append(row)
+
+    # ── Process rows ──
+    used = {
+        r[0] for r in db.session.query(ThisYearItem.sticker_no)
+        .filter(ThisYearItem.year == year, ThisYearItem.sticker_no.isnot(None))
+        .all()
+    }
+    base = (year % 100) * 100
+    next_sticker = 1
 
     count = 0
-    for row in reader:
-        item_name = val("item_name")
+    for row in rows_data:
+        item_name = row.get("item_name", "")
         if not item_name:
             continue
         # Auto-assign sticker: YY## format, skip numbers ending in 4
@@ -248,15 +290,15 @@ def pre_items_import_csv():
             year=year,
             sticker_no=sticker_no,
             item_name=item_name,
-            actual_item=val("actual_item"),
-            category=val("category"),
-            cost=float(val("cost") or 0),
-            source=val("source"),
-            bidder_name=val("bidder_name"),
-            bid_amount=float(val("bid_amount") or 0),
-            handler=val("handler"),
-            photo_codes=val("photo_codes"),
-            notes=val("notes"),
+            actual_item=row.get("actual_item", ""),
+            category=row.get("category", ""),
+            cost=float(row.get("cost", 0) or 0),
+            source=row.get("source", ""),
+            bidder_name=row.get("bidder_name", ""),
+            bid_amount=float(row.get("bid_amount", 0) or 0),
+            handler=row.get("handler", ""),
+            photo_codes=row.get("photo_codes", ""),
+            notes=row.get("notes", ""),
         )
         db.session.add(item)
         count += 1
@@ -280,32 +322,33 @@ def pre_items_export_csv():
         .all()
     )
 
-    buf = io.StringIO()
+    buf = io.BytesIO()
+    buf.write(b'\xef\xbb\xbf')  # BOM
     writer = csv_mod.writer(buf)
     # 統一表頭 (Format 3)
     writer.writerow(["聖物名稱", "實際物品", "類別", "成本", "來源",
                       "投得者", "競投金額", "經手人", "相號", "備註", "貼紙編號"])
     for item in items:
         writer.writerow([
-            item.item_name or "",
-            item.actual_item or "",
-            item.category or "",
-            item.cost or 0,
-            item.source or "",
-            item.bidder_name or "",
-            item.bid_amount or 0,
-            item.handler or "",
-            item.photo_codes or "",
-            item.notes or "",
-            item.sticker_no or "",
+            (item.item_name or "").encode("utf-8"),
+            (item.actual_item or "").encode("utf-8"),
+            (item.category or "").encode("utf-8"),
+            str(item.cost or 0).encode("utf-8"),
+            (item.source or "").encode("utf-8"),
+            (item.bidder_name or "").encode("utf-8"),
+            str(item.bid_amount or 0).encode("utf-8"),
+            (item.handler or "").encode("utf-8"),
+            (item.photo_codes or "").encode("utf-8"),
+            (item.notes or "").encode("utf-8"),
+            str(item.sticker_no or "").encode("utf-8"),
         ])
 
-    content = "\ufeff" + buf.getvalue()  # BOM prefix
-    buf.close()
-    return Response(
-        content,
-        mimetype="text/csv; charset=utf-8-sig",
-        headers={"Content-Disposition": f'attachment; filename="今年聖物_{year}.csv"'},
+    buf.seek(0)
+    return send_file(
+        buf,
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name=f"今年聖物_{year}.csv",
     )
 
 
