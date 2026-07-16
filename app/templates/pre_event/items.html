@@ -156,8 +156,17 @@
     {{ stat_card("已競投", stats.auctioned|default(0), "check_circle", "#166534") }}
   </div>
 
-  <!-- ═══ Action Buttons ═══ -->
-  <div class="action-bar mb-md">
+  <!-- ═══ Year Selector + Action Buttons ═══ -->
+  <div class="flex flex-wrap items-center gap-md mb-md">
+    <div class="flex items-center gap-sm">
+      <span class="material-symbols-outlined" style="color: var(--on-surface-variant); font-size: 1.25rem;">calendar_month</span>
+      <select class="form-input" style="width: auto; min-width: 120px;" onchange="window.location.href='?year=' + this.value">
+        {% for y in years %}
+        <option value="{{ y }}" {% if y|string == year %}selected{% endif %}>{{ y }}年</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="action-bar flex-1" style="min-width: 0;">
     <button class="btn-primary" onclick="openAddModal()">
       <span class="material-symbols-outlined">add</span>
       新增聖物
