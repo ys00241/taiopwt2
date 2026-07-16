@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
 """
 Import 2025 sorting data (sorting2025.xlsx) into taio_pwt DB.
-Creates items, this_year_items, members, and bids from the Excel.
-Run inside the Docker container:
+Maps Excel columns to ThisYearItem + Bid + Item + Member models.
+
+Usage:
     docker cp sorting2025.xlsx taio_pwt:/app/
     docker exec taio_pwt python scripts/import_2025.py
 """
 import sys
 import os
 import uuid
+import json
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
-
 os.environ.setdefault("FLASK_ENV", "production")
 
 from app import create_app
@@ -23,82 +24,84 @@ from app.models.item import Item
 from app.models.this_year_item import ThisYearItem
 from app.models.bid import Bid
 from app.models.edition import Edition
-
 import openpyxl
+
+
+EXCEL_PATH = Path("/app/sorting2025.xlsx")
+
+
+def safe_str(v):
+    if v is None:
+        return ""
+    return str(v).strip()
+
+
+def safe_float(v):
+    if v is None:
+        return 0.0
+    try:
+        return float(v)
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def safe_int(v):
+    if v is None:
+        return 0
+    try:
+        return int(float(str(v).strip()))
+    except (ValueError, TypeError):
+        return 0
 
 
 def get_or_create_member(name):
     """Find member by name, or create a stub member."""
-    if not name or str(name).strip() == "":
+    name = safe_str(name)
+    if not name:
         return None
-    name = str(name).strip()
     member = Member.query.filter_by(name=name).first()
     if member:
         return member
-    # Get max member_id
     max_id = db.session.query(db.func.max(Member.member_id)).scalar() or 99
-    new_id = max_id + 1
     member = Member(
         id=str(uuid.uuid4()),
-        member_id=new_id,
+        member_id=max_id + 1,
         name=name,
         member_type="member",
         status="active",
     )
     db.session.add(member)
     db.session.flush()
-    print(f"  👤 Created new member: {name} (#{new_id})")
+    print(f"  👤 Created member: {name} (#{member.member_id})")
     return member
 
 
-def get_or_create_item(name_1, name_2, category, cost, supplier):
+def get_or_create_item(name_1, name_2):
     """Find item by name_1_auspicious, or create new item master record."""
-    if not name_1 or str(name_1).strip() == "":
-        name_1 = name_2 or "未命名"
-    name_1 = str(name_1).strip()
-    name_2 = str(name_2).strip() if name_2 else ""
-    cost_val = float(cost) if cost else 0
-    supplier_val = str(supplier).strip() if supplier else ""
+    name_1 = safe_str(name_1) or safe_str(name_2) or "未命名"
+    name_2 = safe_str(name_2)
 
-    # Try to find existing item by name_1_auspicious
     item = Item.query.filter_by(name_1_auspicious=name_1).first()
     if not item and name_2:
         item = Item.query.filter_by(name_2_description=name_2).first()
     if item:
         return item
 
-    # Get max item_id
-    max_item_id = db.session.query(db.func.max(Item.item_id)).scalar() or 0
-    new_item_id = max_item_id + 1
-
-    # Store year_data as JSON
-    import json
-    year_data = json.dumps([{
-        "year": 2025,
-        "cost_hkd": cost_val,
-        "supplier": supplier_val,
-    }], ensure_ascii=False)
-
+    max_id = db.session.query(db.func.max(Item.item_id)).scalar() or 0
     item = Item(
-        item_id=new_item_id,
+        item_id=max_id + 1,
         name_1_auspicious=name_1,
         name_2_description=name_2 or None,
-        year_data=year_data,
     )
     db.session.add(item)
     db.session.flush()
-    print(f"  📦 Created new item: {name_1} (ID#{new_item_id})")
+    print(f"  📦 Created item: {name_1} (ID#{item.item_id})")
     return item
 
 
 def main():
-    # Find Excel file
-    excel_path = Path("/app/sorting2025.xlsx")
-    if not excel_path.exists():
-        # Also check /tmp
-        excel_path = Path("/tmp/sorting2025.xlsx")
-    if not excel_path.exists():
-        print("❌ sorting2025.xlsx not found! Copy it to container first:")
+    if not EXCEL_PATH.exists():
+        print(f"❌ {EXCEL_PATH} not found! Copy it first:")
         print("   docker cp sorting2025.xlsx taio_pwt:/app/")
         return
 
@@ -110,102 +113,102 @@ def main():
         print("📥 Importing 2025 sorting data...")
         print("=" * 60)
 
-        wb = openpyxl.load_workbook(str(excel_path), data_only=True)
+        wb = openpyxl.load_workbook(str(EXCEL_PATH), data_only=True)
         ws = wb["今年聖物2026"]
 
-        bid_no = 0
-        items_created = 0
-        members_created = 0
-        this_year_items_created = 0
-        bids_created = 0
+        # ── Column mapping (Excel col → DB field) ──
+        # Col 1: 年份 → year
+        # Col 2: 貼紙# → sticker_no
+        # Col 3: 聖物名稱 → item_name / Item.name_1_auspicious
+        # Col 4: 實際物品 → actual_item / Item.name_2_description
+        # Col 5: 類別 → category
+        # Col 6: 成本 → cost
+        # Col 7: 來源 → source
+        # Col 8: 投得者 → bidder_name / Member.name
+        # Col 9: 競投金額 → bid_amount
+        # Col 10: 經手人 → handler
+        # Col 11: 相號 → photo_codes
+        # Col 12: 備註 → notes
+
+        stats = {"items": 0, "this_year": 0, "bids": 0, "members": 0}
 
         for r in range(2, ws.max_row + 1):
-            year_val = ws.cell(r, 1).value
-            sticker_no = ws.cell(r, 2).value
-            name_1 = ws.cell(r, 3).value  # 聖物名稱
-            name_2 = ws.cell(r, 4).value  # 實際物品
-            category = ws.cell(r, 5).value or "其他"
-            cost = ws.cell(r, 6).value or 0
-            supplier = ws.cell(r, 7).value or ""
-            bidder = ws.cell(r, 8).value  # 投得者
-            bid_amount = ws.cell(r, 9).value or 0
-            handler = ws.cell(r, 10).value or ""
-            photo_ref = ws.cell(r, 11).value or ""
-            remarks = ws.cell(r, 12).value or ""
+            year = safe_int(ws.cell(r, 1).value) or 2025
+            sticker_no = safe_int(ws.cell(r, 2).value)
+            item_name = safe_str(ws.cell(r, 3).value)
+            actual_item = safe_str(ws.cell(r, 4).value)
+            category = safe_str(ws.cell(r, 5).value)
+            cost = safe_float(ws.cell(r, 6).value)
+            source = safe_str(ws.cell(r, 7).value)
+            bidder_name = safe_str(ws.cell(r, 8).value)
+            bid_amount = safe_float(ws.cell(r, 9).value)
+            handler = safe_str(ws.cell(r, 10).value)
+            photo_codes = safe_str(ws.cell(r, 11).value)
+            notes = safe_str(ws.cell(r, 12).value)
 
-            if not name_1 and not name_2:
-                continue  # skip empty rows
+            if not item_name and not actual_item:
+                continue  # skip truly empty rows
 
-            # Normalize sticker number
-            try:
-                sticker_no = int(float(str(sticker_no).strip()))
-            except (ValueError, TypeError):
-                sticker_no = 0
+            # ── 1. Item Master ──
+            item = get_or_create_item(item_name, actual_item)
+            stats["items"] += 1
 
-            # Get or create item master
-            item = get_or_create_item(name_1, name_2, category, cost, supplier)
-            if not item:
-                continue
+            # ── 2. ThisYearItem ──
+            tyi = ThisYearItem(
+                year=year,
+                sticker_no=sticker_no,
+                item_name=item_name,
+                actual_item=actual_item,
+                category=category,
+                cost=cost,
+                source=source,
+                bidder_name=bidder_name,
+                bid_amount=bid_amount,
+                paid_amount=0,
+                handler=handler,
+                photo_codes=photo_codes,
+                notes=notes,
+            )
+            db.session.add(tyi)
+            stats["this_year"] += 1
 
-            # Get or create member
-            member = get_or_create_member(bidder) if bidder else None
-
-            # Create ThisYearItem
-            existing_tyi = ThisYearItem.query.filter_by(
-                year=year_val, sticker_no=sticker_no
-            ).first()
-            if not existing_tyi:
-                tyi = ThisYearItem(
-                    year=year_val or 2025,
-                    sticker_no=sticker_no,
-                    item_id=item.item_id,
-                    cost=float(cost) if cost else 0,
-                    supplier=str(supplier).strip() if supplier else "",
-                    photo_ref=str(photo_ref).strip() if photo_ref else "",
-                    remarks=str(remarks).strip() if remarks else "",
-                )
-                db.session.add(tyi)
-                this_year_items_created += 1
-
-            # Create Bid (only if there's a bidder and amount > 0)
-            if member and bid_amount and float(bid_amount) > 0:
-                bid_no = (bid_no % 999) + 1
+            # ── 3. Member + Bid ──
+            member = get_or_create_member(bidder_name)
+            if member and bid_amount > 0:
+                stats["members"] += 1
                 bid = Bid(
                     id=str(uuid.uuid4()),
-                    year=year_val or 2025,
-                    bid_no=bid_no,
+                    year=year,
+                    bid_no=sticker_no,
                     item_id=item.item_id,
                     member_id=member.member_id,
-                    bid_amount=float(bid_amount),
+                    bid_amount=bid_amount,
                     paid_amount=0,
-                    handler=str(handler).strip() if handler else "",
+                    handler=handler,
                     payment_method="cash",
                 )
                 db.session.add(bid)
-                bids_created += 1
+                stats["bids"] += 1
 
-            items_created += 1
-
-        # Ensure Edition 2025 exists
+        # ── 4. Edition 2025 ──
         if not Edition.query.filter_by(year=2025).first():
-            ed = Edition(
+            db.session.add(Edition(
                 id=str(uuid.uuid4()),
                 year=2025,
                 edition_no=1,
                 event_date="2025-03-01",
                 status="completed",
-            )
-            db.session.add(ed)
+            ))
 
         db.session.commit()
         wb.close()
 
         print("\n" + "=" * 60)
         print("✅ Import complete!")
-        print(f"   Items processed: {items_created}")
-        print(f"   New members created: {Member.query.count()}")
-        print(f"   ThisYearItems: {this_year_items_created}")
-        print(f"   Bids created: {bids_created}")
+        print(f"   Items master:     {stats['items']}")
+        print(f"   ThisYearItems:    {stats['this_year']}")
+        print(f"   Members created:  {Member.query.count()}")
+        print(f"   Bids created:     {stats['bids']}")
         print("=" * 60)
 
 
