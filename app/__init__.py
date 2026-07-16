@@ -47,23 +47,62 @@ def create_app(config_name: str | None = None) -> Flask:
             except Exception:
                 pass  # non-SQLite or first-run
 
+    # Import models so they are registered with SQLAlchemy
+    with flask_app.app_context():
+        import app.models  # noqa: F401
+    
+    # Auto-create all tables if they don't exist (fresh DB)
+    with flask_app.app_context():
+        db.create_all()
+        db.session.commit()
+
     # Migrate existing database — add new columns if they don't exist
     with flask_app.app_context():
         if "sqlite" in flask_app.config.get("SQLALCHEMY_DATABASE_URI", ""):
             from sqlalchemy import text as _t
-            try:
-                db.session.execute(_t("ALTER TABLE members ADD COLUMN member_type VARCHAR(20) DEFAULT 'member'"))
-            except Exception:
-                pass  # column already exists
-            try:
-                db.session.execute(_t("ALTER TABLE members ADD COLUMN status VARCHAR(20) DEFAULT 'active'"))
-            except Exception:
-                pass  # column already exists
-            db.session.commit()
-
-    # Import models so they are registered with SQLAlchemy
-    with flask_app.app_context():
-        import app.models  # noqa: F401
+            # First check if members table exists
+            import sqlalchemy as sa
+            inspector = sa.inspect(db.engine)
+            tables = inspector.get_table_names()
+            if "members" in tables:
+                cols = [c["name"] for c in inspector.get_columns("members")]
+                for col, col_type in [
+                    ("member_type", "VARCHAR(20) DEFAULT 'member'"),
+                    ("status", "VARCHAR(20) DEFAULT 'active'"),
+                    ("name_alais", "VARCHAR(200)"),
+                    ("group_name", "VARCHAR(200)"),
+                    ("referrer", "VARCHAR(200)"),
+                    ("end_year", "INTEGER"),
+                    ("bad_debt", "BOOLEAN DEFAULT 0"),
+                ]:
+                    if col not in cols:
+                        try:
+                            db.session.execute(_t(f"ALTER TABLE members ADD COLUMN {col} {col_type}"))
+                        except Exception:
+                            pass
+                db.session.commit()
+            # membership_fees table
+            if "membership_fees" not in tables:
+                try:
+                    db.session.execute(_t("""
+                        CREATE TABLE IF NOT EXISTS membership_fees (
+                            id VARCHAR PRIMARY KEY,
+                            member_id VARCHAR NOT NULL REFERENCES members(id),
+                            year INTEGER NOT NULL,
+                            amount FLOAT DEFAULT 0,
+                            payment_method VARCHAR(50) DEFAULT 'cash',
+                            handler VARCHAR(100),
+                            notes TEXT,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    """))
+                    db.session.execute(_t("""
+                        CREATE INDEX IF NOT EXISTS idx_membership_fees_member
+                        ON membership_fees(member_id)
+                    """))
+                    db.session.commit()
+                except Exception:
+                    pass
 
     # Register blueprints
     _register_blueprints(flask_app)
