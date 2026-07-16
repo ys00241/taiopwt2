@@ -70,13 +70,20 @@ def get_or_create_item(name_1, name_2, category, cost, supplier):
     # Get max item_id
     max_item_id = db.session.query(db.func.max(Item.item_id)).scalar() or 0
     new_item_id = max_item_id + 1
-    category_val = str(category).strip() if category else "其他"
+
+    # Store year_data as JSON
+    import json
+    year_data = json.dumps([{
+        "year": 2025,
+        "cost_hkd": cost_val,
+        "supplier": supplier_val,
+    }], ensure_ascii=False)
 
     item = Item(
         item_id=new_item_id,
         name_1_auspicious=name_1,
         name_2_description=name_2 or None,
-        category=category_val,
+        year_data=year_data,
     )
     db.session.add(item)
     db.session.flush()
