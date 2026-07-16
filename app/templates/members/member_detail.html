@@ -101,29 +101,32 @@
     <div class="imperial-card" style="text-align: center; cursor: pointer;"
          onclick="window.location.href='/live/payments?q={{ member.name|urlencode }}'">
       <span class="font-label-md" style="color: var(--on-surface-variant);">總欠款</span>
-      {% set total_balance = (total_bid_due|int - total_bid_paid|int) + total_fee|int %}
       <div class="font-headline-lg" style="color: var(--tertiary); margin-top: 0.25rem;">
-        ${{ total_balance if total_balance > 0 else 0 }}
+        ${{ total_outstanding|int if total_outstanding > 0 else 0 }}
       </div>
     </div>
   </div>
 
   <!-- ═══ One-click payment button ═══ -->
   <div class="flex justify-end mb-lg">
-    <button class="btn-primary payment-trigger" data-member-id="{{ member.member_id }}" data-member-name="{{ member.name }}" data-total-due="{{ total_bid_due|int }}" data-total-paid="{{ total_bid_paid|int }}" data-balance="{{ total_balance if total_balance > 0 else 0 }}" style="border: none; cursor: pointer;">
+    <button class="btn-primary payment-trigger" data-member-id="{{ member.member_id }}" data-member-name="{{ member.name }}" data-total-due="{{ total_bid_due|int }}" data-total-paid="{{ total_bid_paid|int }}" data-balance="{{ total_outstanding|int if total_outstanding > 0 else 0 }}" style="border: none; cursor: pointer;">
       <span class="material-symbols-outlined" style="font-size: 1.125rem;">payments</span>
       一鍵繳款
     </button>
   </div>
 
   <!-- ═══ Bid History ═══ -->
+  {% set total_bids_ns = namespace(count=0) %}
+  {% for _year, _yd in bids_by_year.items() %}
+    {% set total_bids_ns.count = total_bids_ns.count + _yd.bids|length %}
+  {% endfor %}
   <div class="imperial-card p-0" style="overflow-x: auto;">
     <div class="flex items-center justify-between p-lg pb-md" style="border-bottom: 1px solid var(--outline-variant);">
       <h3 class="font-headline-md" style="color: var(--on-surface); margin: 0;">競投記錄</h3>
-      <span class="font-body-sm" style="color: var(--on-surface-variant);">{{ bids|length }} 筆</span>
+      <span class="font-body-sm" style="color: var(--on-surface-variant);">{{ total_bids_ns.count }} 筆</span>
     </div>
 
-    {% if bids %}
+    {% if bids_by_year %}
     <table class="imperial-table">
       <thead>
         <tr>
@@ -136,26 +139,23 @@
         </tr>
       </thead>
       <tbody>
-        {% set current_year = namespace(last=none) %}
-        {% for b in bids %}
-        <tr>
-          <td>
-            {% if current_year.last != b.year %}
-            {% set current_year.last = b.year %}
-            <span class="chip chip-gold">{{ b.year }} 年</span>
-            {% else %}
-            <span style="color: var(--on-surface-variant); font-size: 0.8125rem;">〃</span>
-            {% endif %}
+        {% for year, year_data in bids_by_year|dictsort(true) %}
+        <!-- Year group header with subtotals -->
+        <tr style="background: var(--surface-container-highest, #f0ede6);">
+          <td colspan="6" style="padding: 0.5rem 1rem;">
+            <span class="chip chip-gold">{{ year }} 年</span>
+            <span class="font-body-sm" style="color: var(--on-surface-variant); margin-left: 0.75rem;">
+              小計: ${{ year_data.total_bid|int }} / ${{ year_data.total_paid|int }}
+            </span>
           </td>
+        </tr>
+        {% for b in year_data.bids %}
+        <tr>
+          <td><!-- year shown in group header above --></td>
           <td>
-            <a href="/pre/items?highlight={{ b.item_id }}"
-               class="font-label-lg" style="color: var(--primary); text-decoration: none; cursor: pointer;"
-               {% if b.item_id and b.item_id > 0 %}target="_blank"{% endif %}>
-              {% if b.name_1_auspicious %}{{ b.name_1_auspicious }}{% endif %}
-              {% if b.name_1_auspicious and b.name_2_description %} · {% endif %}
-              {% if b.name_2_description %}{{ b.name_2_description }}{% endif %}
-              {% if not b.name_1_auspicious and not b.name_2_description %}—{% endif %}
-            </a>
+            <span class="font-label-lg" style="color: var(--primary);">
+              {{ b.item_name or '—' }}
+            </span>
             {% if b.bid_no %}
             <div class="font-body-sm" style="color: var(--on-surface-variant);">投標 #{{ b.bid_no }}</div>
             {% endif %}
@@ -177,7 +177,7 @@
           <td style="text-align: right;">
             {% set b_unpaid = b.bid_amount - b.paid_amount %}
             {% if b_unpaid > 0 %}
-            <span class="payment-trigger" data-member-id="{{ member.member_id }}" data-member-name="{{ member.name }}" data-total-due="{{ total[0]|int }}" data-total-paid="{{ total[1]|int }}" data-balance="{{ balance if balance > 0 else 0 }}" style="color: var(--tertiary); font-weight: 600; cursor: pointer;">${{ b_unpaid|int }}</span>
+            <span class="payment-trigger" data-member-id="{{ member.member_id }}" data-member-name="{{ member.name }}" data-total-due="{{ total_bid_due|int }}" data-total-paid="{{ total_bid_paid|int }}" data-balance="{{ total_outstanding|int if total_outstanding > 0 else 0 }}" style="color: var(--tertiary); font-weight: 600; cursor: pointer;">${{ b_unpaid|int }}</span>
             {% else %}
             <span style="color: var(--on-surface-variant);">$0</span>
             {% endif %}
@@ -195,6 +195,7 @@
           </td>
         </tr>
         {% endfor %}
+        {% endfor %}
       </tbody>
     </table>
     {% else %}
@@ -206,8 +207,15 @@
   </div>
 
   <!-- ═══ Payment Method Legend (if any bid has extra info) ═══ -->
-  {% set has_payment_info = bids|selectattr('payment_method')|list|length > 0 %}
-  {% if has_payment_info %}
+  {% set has_payment_info = namespace(value=false) %}
+  {% for _year, _yd in bids_by_year.items() %}
+    {% for _b in _yd.bids %}
+      {% if _b.payment_method %}
+        {% set has_payment_info.value = true %}
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+  {% if has_payment_info.value %}
   <details class="imperial-card mt-lg" style="cursor: pointer;">
     <summary class="font-label-lg" style="color: var(--on-surface-variant);">付款詳情</summary>
     <table class="imperial-table mt-md">
@@ -222,15 +230,17 @@
         </tr>
       </thead>
       <tbody>
-        {% for b in bids if b.payment_method %}
+        {% for _year, _yd in bids_by_year.items() %}
+          {% for b in _yd.bids if b.payment_method %}
         <tr>
-          <td>{{ b.year }}</td>
+          <td>{{ _year }}</td>
           <td>{{ b.item_name or '—' }}</td>
           <td>{{ b.payment_method }}</td>
           <td>{{ b.handler or '—' }}</td>
           <td>{{ b.receipt_no or '—' }}</td>
           <td class="truncate" style="max-width: 150px;">{{ b.remarks or '—' }}</td>
         </tr>
+          {% endfor %}
         {% endfor %}
       </tbody>
     </table>
@@ -247,10 +257,46 @@
       </button>
     </div>
     <div id="feeList">
+      {% if fee_list %}
+      <div class="overflow-x-auto">
+        <table class="imperial-table">
+          <thead>
+            <tr>
+              <th>年份</th>
+              <th>金額</th>
+              <th>付款方式</th>
+              <th>經手人</th>
+              <th>備註</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for f in fee_list %}
+            <tr>
+              <td><span class="chip chip-gold">{{ f.year }} 年</span></td>
+              <td style="font-weight: 500; color: #166534;">${{ f.amount|int }}</td>
+              <td>{{ f.payment_method or '—' }}</td>
+              <td>{{ f.handler or '—' }}</td>
+              <td class="truncate" style="max-width: 150px;">{{ f.notes or '—' }}</td>
+              <td>
+                <button class="icon-btn" onclick="editFee('{{ f.id }}', {{ f.year }}, {{ f.amount }}, '{{ (f.payment_method or '')|replace("'", "\\'") }}', '{{ (f.handler or '')|replace("'", "\\'") }}', '{{ (f.notes or '')|replace("'", "\\'") }}')" title="編輯">
+                  <span class="material-symbols-outlined" style="font-size: 1.125rem;">edit</span>
+                </button>
+                <button class="icon-btn" onclick="deleteFee('{{ f.id }}')" title="刪除" style="color: var(--tertiary);">
+                  <span class="material-symbols-outlined" style="font-size: 1.125rem;">delete</span>
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
       <div class="flex flex-col items-center py-xl" style="color: var(--on-surface-variant);">
         <span class="material-symbols-outlined" style="font-size: 2.5rem; margin-bottom: 0.5rem;">payments</span>
-        <p class="font-body-md">載入中...</p>
+        <p class="font-body-md">暫無會費記錄</p>
       </div>
+      {% endif %}
     </div>
   </div>
 
@@ -569,7 +615,7 @@
   });
   document.addEventListener('DOMContentLoaded', async function () {
     console.log('Member detail loaded — {{ member.name }}');
-    await loadFees({{ member.member_id }});
+    // Fees are server-rendered; loadFees() used for CRUD refresh only
   });
 
   // ════════════════════════════════════════════

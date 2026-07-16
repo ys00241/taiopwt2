@@ -225,6 +225,8 @@ def member_detail(member_id):
             "handler": b.handler or "",
             "item_name_1": name1 or "",
             "item_name_2": name2 or "",
+            "receipt_no": b.receipt_no or "",
+            "remarks": b.remarks or "",
         })
         if b.bid_amount and b.bid_amount > 0:
             bids_by_year[year]["total_bid"] += b.bid_amount
