@@ -197,7 +197,6 @@ def main():
                 year=2025,
                 edition_no=1,
                 event_date="2025-03-01",
-                status="completed",
             ))
 
         db.session.commit()
