@@ -180,7 +180,7 @@ def list_members():
 @bp.route("/members/<int:member_id>")
 @login_required
 def member_detail(member_id):
-    """Show member detail including bid history."""
+    """Show member detail including bid history + membership fees."""
     member = Member.query.filter_by(member_id=member_id).first()
     if not member:
         return render_template("errors/404.html"), 404
@@ -205,32 +205,49 @@ def member_detail(member_id):
         .scalar()
     )
 
-    bid_list = []
+    # Membership fees
+    fees = MembershipFee.query.filter_by(member_id=member_id).order_by(MembershipFee.year.desc()).all()
+    fee_total = sum(f.amount or 0 for f in fees)
+
+    # Group bids by year
+    bids_by_year = {}
     for b, name1, name2 in bids:
-        bid_list.append(
-            {
-                "id": b.id,
-                "item_id": b.item_id,
-                "year": b.year,
-                "bid_amount": b.bid_amount or 0,
-                "paid_amount": b.paid_amount or 0,
-                "membership_fee": b.membership_fee or 0,
-                "bid_no": b.bid_no,
-                "payment_method": b.payment_method or "",
-                "handler": b.handler or "",
-                "receipt_no": b.receipt_no or "",
-                "remarks": b.remarks or "",
-                "item_name": name1 or name2 or "",
-                "name_1_auspicious": name1 or "",
-                "name_2_description": name2 or "",
-            }
-        )
+        year = b.year
+        if year not in bids_by_year:
+            bids_by_year[year] = {"bids": [], "total_bid": 0, "total_paid": 0}
+        bids_by_year[year]["bids"].append({
+            "id": b.id,
+            "item_name": name1 or name2 or "",
+            "bid_no": b.bid_no,
+            "bid_amount": b.bid_amount or 0,
+            "paid_amount": b.paid_amount or 0,
+            "payment_method": b.payment_method or "",
+            "handler": b.handler or "",
+            "item_name_1": name1 or "",
+            "item_name_2": name2 or "",
+        })
+        if b.bid_amount and b.bid_amount > 0:
+            bids_by_year[year]["total_bid"] += b.bid_amount
+        bids_by_year[year]["total_paid"] += (b.paid_amount or 0)
+
+    fee_list = [{
+        "id": f.id,
+        "year": f.year,
+        "amount": f.amount or 0,
+        "payment_method": f.payment_method or "",
+        "handler": f.handler or "",
+        "notes": f.notes or "",
+    } for f in fees]
 
     return render_template(
         "members/member_detail.html",
         member=member,
-        bids=bid_list,
-        total=[float(total_due), float(total_paid)],
+        bids_by_year=bids_by_year,
+        fee_list=fee_list,
+        total_bid_due=float(total_due),
+        total_bid_paid=float(total_paid),
+        total_fee=fee_total,
+        total_outstanding=float(total_due) - float(total_paid) + fee_total,
     )
 
 

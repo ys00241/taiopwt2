@@ -79,32 +79,38 @@
   </div>
 
   <!-- ═══ Total Summary ═══ -->
-  <div class="grid grid-cols-1 sm:grid-cols-3 gap-md mb-lg">
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-md mb-lg">
     <div class="imperial-card" style="text-align: center;">
-      <span class="font-label-md" style="color: var(--on-surface-variant);">應繳總額</span>
+      <span class="font-label-md" style="color: var(--on-surface-variant);">競投應繳</span>
       <div class="font-headline-lg" style="color: var(--on-surface); margin-top: 0.25rem;">
-        ${{ total[0]|int if total[0] else 0 }}
+        ${{ total_bid_due|int }}
       </div>
     </div>
     <div class="imperial-card" style="text-align: center;">
-      <span class="font-label-md" style="color: var(--on-surface-variant);">已繳總額</span>
+      <span class="font-label-md" style="color: var(--on-surface-variant);">競投已繳</span>
       <div class="font-headline-lg" style="color: #166534; margin-top: 0.25rem;">
-        ${{ total[1]|int if total[1] else 0 }}
+        ${{ total_bid_paid|int }}
+      </div>
+    </div>
+    <div class="imperial-card" style="text-align: center;">
+      <span class="font-label-md" style="color: var(--on-surface-variant);">會費總額</span>
+      <div class="font-headline-lg" style="color: var(--on-surface); margin-top: 0.25rem;">
+        ${{ total_fee|int }}
       </div>
     </div>
     <div class="imperial-card" style="text-align: center; cursor: pointer;"
-         onclick="showDebtModal({{ member.member_id }}, {{ member.name|tojson }})">
-      <span class="font-label-md" style="color: var(--on-surface-variant);">未繳總額</span>
-      {% set balance = (total[0]|int if total[0] else 0) - (total[1]|int if total[1] else 0) %}
+         onclick="window.location.href='/live/payments?q={{ member.name|urlencode }}'">
+      <span class="font-label-md" style="color: var(--on-surface-variant);">總欠款</span>
+      {% set total_balance = (total_bid_due|int - total_bid_paid|int) + total_fee|int %}
       <div class="font-headline-lg" style="color: var(--tertiary); margin-top: 0.25rem;">
-        ${{ balance if balance > 0 else 0 }}
+        ${{ total_balance if total_balance > 0 else 0 }}
       </div>
     </div>
   </div>
 
   <!-- ═══ One-click payment button ═══ -->
   <div class="flex justify-end mb-lg">
-    <button class="btn-primary payment-trigger" data-member-id="{{ member.member_id }}" data-member-name="{{ member.name }}" data-total-due="{{ total[0]|int }}" data-total-paid="{{ total[1]|int }}" data-balance="{{ balance if balance > 0 else 0 }}" style="border: none; cursor: pointer;">
+    <button class="btn-primary payment-trigger" data-member-id="{{ member.member_id }}" data-member-name="{{ member.name }}" data-total-due="{{ total_bid_due|int }}" data-total-paid="{{ total_bid_paid|int }}" data-balance="{{ total_balance if total_balance > 0 else 0 }}" style="border: none; cursor: pointer;">
       <span class="material-symbols-outlined" style="font-size: 1.125rem;">payments</span>
       一鍵繳款
     </button>

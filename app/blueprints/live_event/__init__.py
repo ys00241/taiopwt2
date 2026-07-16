@@ -173,9 +173,32 @@ def live_payments():
             pass
 
     # Build member debt query
+    # — Subquery: total bid amounts owed (競投欠款)
+    # — Subquery: total membership fees owed (會費欠款)
+    # — Subquery: total bid payments received
+    # — Subquery: total live income payments received
+    bid_due_sub = (
+        db.session.query(db.func.coalesce(db.func.sum(Bid.bid_amount), 0))
+        .filter(
+            Bid.member_id == Member.member_id,
+            Bid.bid_amount > 0,
+        )
+        .scalar_subquery()
+    )
+    fee_due_sub = (
+        db.session.query(db.func.coalesce(db.func.sum(MembershipFee.amount), 0))
+        .filter(MembershipFee.member_id == Member.member_id)
+        .scalar_subquery()
+    )
+    bid_paid_sub = (
+        db.session.query(db.func.coalesce(db.func.sum(Bid.paid_amount), 0))
+        .filter(Bid.member_id == Member.member_id)
+        .scalar_subquery()
+    )
+
     if int_source_year:
-        # Scope to a specific source year
-        total_due_sub = (
+        # Scope to a specific source year — add year filters
+        bid_due_sub = (
             db.session.query(db.func.coalesce(db.func.sum(Bid.bid_amount), 0))
             .filter(
                 Bid.member_id == Member.member_id,
@@ -184,7 +207,15 @@ def live_payments():
             )
             .scalar_subquery()
         )
-        total_paid_sub = (
+        fee_due_sub = (
+            db.session.query(db.func.coalesce(db.func.sum(MembershipFee.amount), 0))
+            .filter(
+                MembershipFee.member_id == Member.member_id,
+                MembershipFee.year == int_source_year,
+            )
+            .scalar_subquery()
+        )
+        bid_paid_sub = (
             db.session.query(db.func.coalesce(db.func.sum(Bid.paid_amount), 0))
             .filter(
                 Bid.member_id == Member.member_id,
@@ -206,30 +237,25 @@ def live_payments():
             db.session.query(
                 Member.member_id,
                 Member.name,
-                total_due_sub.label("total_due"),
-                total_paid_sub.label("total_paid"),
+                bid_due_sub.label("bid_due"),
+                fee_due_sub.label("fee_due"),
+                bid_paid_sub.label("bid_paid"),
                 live_paid_sub.label("live_paid"),
             )
-            .filter(Member.member_id.in_(
-                db.session.query(Bid.member_id)
-                .filter(Bid.year == int_source_year, Bid.bid_amount > 0)
-                .distinct()
+            .filter(db.or_(
+                Member.member_id.in_(
+                    db.session.query(Bid.member_id)
+                    .filter(Bid.year == int_source_year, Bid.bid_amount > 0)
+                    .distinct()
+                ),
+                Member.member_id.in_(
+                    db.session.query(MembershipFee.member_id)
+                    .filter(MembershipFee.year == int_source_year)
+                    .distinct()
+                ),
             ))
         )
     else:
-        total_due_sub = (
-            db.session.query(db.func.coalesce(db.func.sum(Bid.bid_amount), 0))
-            .filter(
-                Bid.member_id == Member.member_id,
-                Bid.bid_amount > 0,
-            )
-            .scalar_subquery()
-        )
-        total_paid_sub = (
-            db.session.query(db.func.coalesce(db.func.sum(Bid.paid_amount), 0))
-            .filter(Bid.member_id == Member.member_id)
-            .scalar_subquery()
-        )
         live_paid_sub = (
             db.session.query(db.func.coalesce(db.func.sum(LiveIncome.amount), 0))
             .filter(
@@ -243,14 +269,21 @@ def live_payments():
             db.session.query(
                 Member.member_id,
                 Member.name,
-                total_due_sub.label("total_due"),
-                total_paid_sub.label("total_paid"),
+                bid_due_sub.label("bid_due"),
+                fee_due_sub.label("fee_due"),
+                bid_paid_sub.label("bid_paid"),
                 live_paid_sub.label("live_paid"),
             )
-            .filter(Member.member_id.in_(
-                db.session.query(Bid.member_id)
-                .filter(Bid.bid_amount > 0)
-                .distinct()
+            .filter(db.or_(
+                Member.member_id.in_(
+                    db.session.query(Bid.member_id)
+                    .filter(Bid.bid_amount > 0)
+                    .distinct()
+                ),
+                Member.member_id.in_(
+                    db.session.query(MembershipFee.member_id)
+                    .distinct()
+                ),
             ))
         )
 
@@ -258,10 +291,19 @@ def live_payments():
     result = []
     for r in rows:
         d = r._asdict()
-        due = d["total_due"] or 0
-        paid = (d["total_paid"] or 0) + (d["live_paid"] or 0)
-        d["total_paid_combined"] = paid
-        d["unpaid"] = due - paid
+        bid_due = d["bid_due"] or 0
+        fee_due = d["fee_due"] or 0
+        bid_paid = d["bid_paid"] or 0
+        live_paid = d["live_paid"] or 0
+        total_due = bid_due + fee_due
+        total_paid = bid_paid + live_paid
+        unpaid = total_due - total_paid
+        d["bid_due"] = bid_due
+        d["fee_due"] = fee_due
+        d["total_due"] = total_due
+        d["total_paid"] = bid_paid
+        d["total_paid_combined"] = total_paid
+        d["unpaid"] = unpaid
         result.append(d)
 
     # Members with outstanding balance (default view on page load)

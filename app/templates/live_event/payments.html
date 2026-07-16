@@ -258,26 +258,29 @@
     {% if not search %}
       {% if members_with_debt %}
         {% for m in members_with_debt %}
-        <div class="member-result-card mb-sm" data-member-id="{{ m.member_id }}" data-member-name="{{ m.name|e }}" data-total-due="{{ m.total_due|default(0)|int }}" data-total-paid="{{ m.total_paid_combined|default(0)|int }}" data-unpaid="{{ m.unpaid|default(0)|int }}">
+        <div class="member-result-card mb-sm" data-member-id="{{ m.member_id }}" data-member-name="{{ m.name|e }}" data-bid-due="{{ m.bid_due|default(0)|int }}" data-fee-due="{{ m.fee_due|default(0)|int }}" data-total-due="{{ m.total_due|default(0)|int }}" data-total-paid="{{ m.total_paid_combined|default(0)|int }}" data-unpaid="{{ m.unpaid|default(0)|int }}">
           <div class="flex items-center justify-between mb-sm">
             <span class="name">{{ m.name }}</span>
             <span class="material-symbols-outlined" style="color: var(--on-surface-variant);">chevron_right</span>
           </div>
-          <div class="flex items-center gap-md">
-            <div>
-              <span class="font-body-sm text-on-surface-variant">應繳</span>
-              <div class="font-label-lg">${{ m.total_due|default(0)|int }}</div>
+          <div class="space-y-xxs" style="margin-bottom: 0.5rem;">
+            <div class="flex items-center justify-between" style="font-family: 'Inter', sans-serif; font-size: 0.875rem;">
+              <span class="text-on-surface-variant">競投欠款</span>
+              <span class="font-label-lg">${{ m.bid_due|default(0)|int }}</span>
             </div>
-            <div>
-              <span class="font-body-sm text-on-surface-variant">已繳</span>
-              <div class="font-label-lg" style="color: #166534;">${{ m.total_paid_combined|default(0)|int }}</div>
+            <div class="flex items-center justify-between" style="font-family: 'Inter', sans-serif; font-size: 0.875rem;">
+              <span class="text-on-surface-variant">會費欠款</span>
+              <span class="font-label-lg">${{ m.fee_due|default(0)|int }}</span>
             </div>
-            <div>
-              <span class="font-body-sm text-on-surface-variant">未繳</span>
-              <div class="font-headline-md" style="color: var(--tertiary);">${{ m.unpaid|default(0)|int }}</div>
+            <div class="flex items-center justify-between border-t border-outline-variant pt-xxs" style="padding-top: 0.25rem; margin-top: 0.125rem;">
+              <span class="font-label-md" style="font-weight: 600;">總欠款</span>
+              <span class="font-headline-md" style="color: var(--tertiary);">${{ m.total_due|default(0)|int }}</span>
             </div>
           </div>
-          <div class="mt-sm"><span class="badge" style="background: #fef2f2; color: var(--tertiary);">尚有欠款</span></div>
+          <div class="flex items-center justify-between">
+            <span class="badge" style="background: #fef2f2; color: var(--tertiary);">尚有欠款</span>
+            <span class="font-body-sm text-on-surface-variant">已繳 ${{ m.total_paid_combined|default(0)|int }}</span>
+          </div>
         </div>
         {% endfor %}
       {% else %}
@@ -342,19 +345,25 @@
       </button>
     </div>
 
-    <!-- Summary -->
-    <div class="grid grid-cols-3 gap-sm mb-md p-md" style="background: var(--surface-container); border-radius: 12px;">
-      <div class="text-center">
-        <div class="font-label-md text-on-surface-variant">應繳</div>
-        <div class="font-headline-md" style="color: var(--on-surface);" id="payTotalDue">$0</div>
+    <!-- Summary — Breakdown: 競投欠款 / 會費欠款 / 總欠款 -->
+    <div class="mb-md p-md" style="background: var(--surface-container); border-radius: 12px;">
+      <div class="space-y-xxs">
+        <div class="flex items-center justify-between" style="font-family: 'Inter', sans-serif; font-size: 0.875rem;">
+          <span class="text-on-surface-variant">競投欠款</span>
+          <span class="font-label-lg" id="payBidDue">$0</span>
+        </div>
+        <div class="flex items-center justify-between" style="font-family: 'Inter', sans-serif; font-size: 0.875rem;">
+          <span class="text-on-surface-variant">會費欠款</span>
+          <span class="font-label-lg" id="payFeeDue">$0</span>
+        </div>
+        <div class="flex items-center justify-between border-t border-outline-variant pt-xxs" style="padding-top: 0.25rem;">
+          <span class="font-label-md" style="font-weight: 600;">總欠款</span>
+          <span class="font-headline-md" style="color: var(--tertiary);" id="payTotalDue">$0</span>
+        </div>
       </div>
-      <div class="text-center">
-        <div class="font-label-md text-on-surface-variant">已繳</div>
-        <div class="font-headline-md" style="color: #166534;" id="payTotalPaid">$0</div>
-      </div>
-      <div class="text-center">
-        <div class="font-label-md text-on-surface-variant">未繳</div>
-        <div class="font-headline-md" style="color: var(--tertiary);" id="payUnpaid">$0</div>
+      <div class="flex items-center justify-between mt-sm">
+        <span class="font-body-sm text-on-surface-variant">已繳總額</span>
+        <span class="font-label-lg" style="color: #166534;" id="payTotalPaid">$0</span>
       </div>
     </div>
 
@@ -444,10 +453,12 @@
         if (!card) return;
         const mId = card.dataset.memberId;
         const mName = card.dataset.memberName;
+        const bd = parseFloat(card.dataset.bidDue) || 0;
+        const fd = parseFloat(card.dataset.feeDue) || 0;
         const d = parseFloat(card.dataset.totalDue) || 0;
         const p = parseFloat(card.dataset.totalPaid) || 0;
         const u = parseFloat(card.dataset.unpaid) || 0;
-        openPaymentSheet(mId, mName, d, p, u);
+        openPaymentSheet(mId, mName, bd, fd, d, p, u);
       });
     }
     // Search results (dynamically inserted)
@@ -458,10 +469,12 @@
         if (!card) return;
         const mId = card.dataset.memberId;
         const mName = card.dataset.memberName;
+        const bd = parseFloat(card.dataset.bidDue) || 0;
+        const fd = parseFloat(card.dataset.feeDue) || 0;
         const d = parseFloat(card.dataset.totalDue) || 0;
         const p = parseFloat(card.dataset.totalPaid) || 0;
         const u = parseFloat(card.dataset.unpaid) || 0;
-        openPaymentSheet(mId, mName, d, p, u);
+        openPaymentSheet(mId, mName, bd, fd, d, p, u);
       });
     }
     // Search dropdown results
@@ -472,10 +485,12 @@
         if (!item) return;
         const mId = item.dataset.memberId;
         const mName = item.dataset.memberName;
+        const bd = parseFloat(item.dataset.bidDue) || 0;
+        const fd = parseFloat(item.dataset.feeDue) || 0;
         const d = parseFloat(item.dataset.totalDue) || 0;
         const p = parseFloat(item.dataset.totalPaid) || 0;
         const u = parseFloat(item.dataset.unpaid) || 0;
-        showMemberResult({member_id: parseInt(mId), name: mName, total_due: d, total_paid: p, unpaid: u});
+        showMemberResult({member_id: parseInt(mId), name: mName, bid_due: bd, fee_due: fd, total_due: d, total_paid: p, unpaid: u});
       });
     }
   });
@@ -520,7 +535,7 @@
 
       resultsDiv.innerHTML = matches.map(m =>
         `<div class="font-body-sm" style="color: #ffffff; padding: 0.5rem 0; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.1);"
-              data-member-id="${m.member_id}" data-member-name="${(m.name||'').replace(/'/g, '\\u0027').replace(/"/g, '\\u0022')}" data-total-due="${m.total_due||0}" data-total-paid="${m.total_paid||0}" data-unpaid="${m.unpaid||0}">${m.name}</div>`
+              data-member-id="${m.member_id}" data-member-name="${(m.name||'').replace(/'/g, '\\u0027').replace(/"/g, '\\u0022')}" data-bid-due="${m.bid_due||0}" data-fee-due="${m.fee_due||0}" data-total-due="${m.total_due||0}" data-total-paid="${m.total_paid||0}" data-unpaid="${m.unpaid||0}">${m.name}</div>`
       ).join('');
       resultsDiv.style.display = 'block';
       memberDiv.style.display = 'none';
@@ -542,26 +557,28 @@
     const div = document.getElementById('memberResult');
     div.style.display = 'block';
     div.innerHTML = `
-      <div class="member-result-card" data-member-id="${member.member_id}" data-member-name="${member.name.replace(/'/g, '\\u0027').replace(/"/g, '\\u0022')}" data-total-due="${member.total_due||0}" data-total-paid="${member.total_paid||0}" data-unpaid="${member.unpaid||0}">
+      <div class="member-result-card" data-member-id="${member.member_id}" data-member-name="${member.name.replace(/'/g, '\\u0027').replace(/"/g, '\\u0022')}" data-bid-due="${member.bid_due||0}" data-fee-due="${member.fee_due||0}" data-total-due="${member.total_due||0}" data-total-paid="${member.total_paid||0}" data-unpaid="${member.unpaid||0}">
         <div class="flex items-center justify-between mb-sm">
           <span class="name">${member.name}</span>
           <span class="material-symbols-outlined" style="color: var(--on-surface-variant);">chevron_right</span>
         </div>
-        <div class="flex items-center gap-md">
-          <div>
-            <span class="font-body-sm text-on-surface-variant">應繳</span>
-            <div class="font-label-lg">$${member.total_due||0}</div>
+        <div class="space-y-xxs" style="margin-bottom: 0.5rem;">
+            <div class="flex items-center justify-between" style="font-family: 'Inter', sans-serif; font-size: 0.875rem;">
+              <span class="text-on-surface-variant">競投欠款</span>
+              <span class="font-label-lg">$${member.bid_due||0}</span>
+            </div>
+            <div class="flex items-center justify-between" style="font-family: 'Inter', sans-serif; font-size: 0.875rem;">
+              <span class="text-on-surface-variant">會費欠款</span>
+              <span class="font-label-lg">$${member.fee_due||0}</span>
+            </div>
+            <div class="flex items-center justify-between border-t border-outline-variant pt-xxs" style="padding-top: 0.25rem; margin-top: 0.125rem;">
+              <span class="font-label-md" style="font-weight: 600;">總欠款</span>
+              <span class="font-headline-md" style="color: var(--tertiary);">$${member.total_due||0}</span>
+            </div>
           </div>
-          <div>
-            <span class="font-body-sm text-on-surface-variant">已繳</span>
-            <div class="font-label-lg" style="color: #166534;">$${member.total_paid||0}</div>
-          </div>
-          <div>
-            <span class="font-body-sm text-on-surface-variant">未繳</span>
-            <div class="font-headline-md" style="color: var(--tertiary);">$${member.unpaid||0}</div>
-          </div>
-        </div>
-        ${member.unpaid > 0 ? `<div class="mt-sm"><span class="badge" style="background: #fef2f2; color: var(--tertiary);">尚有欠款</span></div>` : `<div class="mt-sm"><span class="badge" style="background: #f0fdf4; color: #166534;">已繳清</span></div>`}
+          ${member.unpaid > 0
+            ? `<div class="flex items-center justify-between"><span class="badge" style="background: #fef2f2; color: var(--tertiary);">尚有欠款</span><span class="font-body-sm text-on-surface-variant">已繳 $${member.total_paid||0}</span></div>`
+            : `<div class="flex items-center justify-between"><span class="badge" style="background: #f0fdf4; color: #166534;">已繳清</span><span class="font-body-sm text-on-surface-variant">已繳 $${member.total_paid||0}</span></div>`}
       </div>
     `;
     document.getElementById('searchResults').style.display = 'none';
@@ -572,14 +589,15 @@
   // ════════════════════════════════════════
   let payItems = []; // current member's unpaid items
 
-  function openPaymentSheet(memberId, memberName, totalDue, totalPaid, unpaid) {
+  function openPaymentSheet(memberId, memberName, bidDue, feeDue, totalDue, totalPaid, unpaid) {
     document.getElementById('payMemberId').value = memberId;
     document.getElementById('payMemberName').value = memberName;
     document.getElementById('paySheetTitle').textContent = `收款 — ${memberName}`;
-    document.getElementById('paySheetMember').textContent = `應繳: $${totalDue} · 未繳: $${unpaid}`;
+    document.getElementById('paySheetMember').textContent = `競投欠款: $${bidDue} · 會費欠款: $${feeDue} · 未繳: $${unpaid}`;
+    document.getElementById('payBidDue').textContent = `$${bidDue}`;
+    document.getElementById('payFeeDue').textContent = `$${feeDue}`;
     document.getElementById('payTotalDue').textContent = `$${totalDue}`;
     document.getElementById('payTotalPaid').textContent = `$${totalPaid}`;
-    document.getElementById('payUnpaid').textContent = `$${unpaid}`;
     document.getElementById('payAmount').value = '';
     document.getElementById('payBidIds').value = '';
     document.getElementById('paymentSheet').classList.add('open');
