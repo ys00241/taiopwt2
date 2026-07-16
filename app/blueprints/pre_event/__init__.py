@@ -322,30 +322,32 @@ def pre_items_export_csv():
         .all()
     )
 
-    buf = io.BytesIO()
-    buf.write(b'\xef\xbb\xbf')  # BOM
+    buf = io.StringIO()
     writer = csv_mod.writer(buf)
     # 統一表頭 (Format 3)
     writer.writerow(["聖物名稱", "實際物品", "類別", "成本", "來源",
                       "投得者", "競投金額", "經手人", "相號", "備註", "貼紙編號"])
     for item in items:
         writer.writerow([
-            (item.item_name or "").encode("utf-8"),
-            (item.actual_item or "").encode("utf-8"),
-            (item.category or "").encode("utf-8"),
-            str(item.cost or 0).encode("utf-8"),
-            (item.source or "").encode("utf-8"),
-            (item.bidder_name or "").encode("utf-8"),
-            str(item.bid_amount or 0).encode("utf-8"),
-            (item.handler or "").encode("utf-8"),
-            (item.photo_codes or "").encode("utf-8"),
-            (item.notes or "").encode("utf-8"),
-            str(item.sticker_no or "").encode("utf-8"),
+            item.item_name or "",
+            item.actual_item or "",
+            item.category or "",
+            item.cost or 0,
+            item.source or "",
+            item.bidder_name or "",
+            item.bid_amount or 0,
+            item.handler or "",
+            item.photo_codes or "",
+            item.notes or "",
+            item.sticker_no or "",
         ])
 
-    buf.seek(0)
+    out = io.BytesIO()
+    out.write("\ufeff".encode("utf-8"))           # BOM
+    out.write(buf.getvalue().encode("utf-8"))      # CSV body
+    out.seek(0)
     return send_file(
-        buf,
+        out,
         mimetype="text/csv",
         as_attachment=True,
         download_name=f"今年聖物_{year}.csv",
