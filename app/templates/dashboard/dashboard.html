@@ -12,10 +12,9 @@
   <div class="flex items-center gap-md mb-lg">
     <span class="material-symbols-outlined" style="color: var(--on-surface-variant); font-size: 1.25rem;">calendar_month</span>
     <select class="form-input" style="width: auto; min-width: 120px;" onchange="window.location.href='/?year=' + this.value">
-      {% for y in stats.years|default([]) %}
+      {% for y in years %}
       <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}年</option>
       {% endfor %}
-      <option value="{{ year }}" selected>{{ year }}年</option>
     </select>
     <span class="font-label-lg" style="color: var(--on-surface-variant);">年度報表</span>
   </div>

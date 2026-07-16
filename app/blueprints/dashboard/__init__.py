@@ -101,6 +101,16 @@ def dashboard():
             "description": ed.venue or "",
         })
 
+    # Available years for selector
+    years = [r[0] for r in
+        db.session.query(ThisYearItem.year)
+        .distinct()
+        .order_by(ThisYearItem.year.desc())
+        .all()
+    ]
+    if not years:
+        years = [datetime.now().year]
+
     stats = {
         "members": members_count,
         "this_year_items": this_year_items_count,
@@ -116,6 +126,7 @@ def dashboard():
         "dashboard/dashboard.html",
         stats=stats,
         year=year,
+        years=years,
         recent_bids=recent_bids,
         upcoming_events=upcoming_events,
     )
