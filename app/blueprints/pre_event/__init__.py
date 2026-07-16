@@ -208,32 +208,18 @@ def pre_items_import_csv():
     base = (year % 100) * 100
     next_sticker = 1
 
-    # ── Header mapping: support Chinese (Excel export) + English (CSV export) ──
+    # ── 統一表頭 (Format 3) ──
     HEADER_MAP = {
-        "item_name": "item_name",
         "聖物名稱": "item_name",
-        "意頭名": "item_name",
-        "actual_item": "actual_item",
         "實際物品": "actual_item",
-        "category": "category",
         "類別": "category",
-        "cost": "cost",
         "成本": "cost",
-        "source": "source",
         "來源": "source",
-        "bidder_name": "bidder_name",
         "投得者": "bidder_name",
-        "bid_amount": "bid_amount",
-        "投標金額": "bid_amount",
         "競投金額": "bid_amount",
-        "handler": "handler",
-        "經手人": "handler",
-        "photo_codes": "photo_codes",
-        "相號": "photo_codes",
-        "notes": "notes",
         "備註": "notes",
-        "sticker_no": "sticker_no",
-        "貼紙#": "sticker_no",
+        "經手人": "handler",
+        "相號": "photo_codes",
         "貼紙編號": "sticker_no",
     }
 
@@ -295,11 +281,10 @@ def pre_items_export_csv():
     )
 
     buf = io.StringIO()
-    # Write BOM for Excel to recognise UTF-8
     writer = csv_mod.writer(buf)
-    # Headers — same names as import CSV route reads
-    writer.writerow(["item_name", "actual_item", "category", "cost", "source",
-                      "bidder_name", "bid_amount", "handler", "photo_codes", "notes"])
+    # 統一表頭 (Format 3)
+    writer.writerow(["聖物名稱", "實際物品", "類別", "成本", "來源",
+                      "投得者", "競投金額", "經手人", "相號", "備註", "貼紙編號"])
     for item in items:
         writer.writerow([
             item.item_name or "",
@@ -312,6 +297,7 @@ def pre_items_export_csv():
             item.handler or "",
             item.photo_codes or "",
             item.notes or "",
+            item.sticker_no or "",
         ])
 
     content = "\ufeff" + buf.getvalue()  # BOM prefix
@@ -343,13 +329,13 @@ def pre_items_export_excel():
     ws.title = f"今年聖物{year}"
 
     # Title row
-    ws.merge_cells("A1:H1")
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=11)
     ws["A1"] = f"今年聖物 — {year}年 (寶榮堂花炮會)"
     ws["A1"].font = Font(size=14, bold=True, color="8b0000")
     ws["A1"].alignment = Alignment(horizontal="center")
 
-    # Headers
-    headers = ["貼紙#", "意頭名", "類別", "成本", "來源", "投得者", "投標金額", "備註"]
+    # Headers (Format 3)
+    headers = ["貼紙編號", "聖物名稱", "實際物品", "類別", "成本", "來源", "投得者", "競投金額", "經手人", "相號", "備註"]
     header_fill = PatternFill(start_color="F5ECE6", end_color="F5ECE6", fill_type="solid")
     header_font = Font(bold=True, size=11)
     thin_border = Border(
@@ -368,12 +354,15 @@ def pre_items_export_excel():
     for i, item in enumerate(items, 4):
         data = [
             item.sticker_no or "",
-            item.item_name,
+            item.item_name or "",
+            item.actual_item or "",
             item.category or "",
             item.cost if item.cost else "",
             item.source or "",
             item.bidder_name or "",
             item.bid_amount if item.bid_amount else "",
+            item.handler or "",
+            item.photo_codes or "",
             item.notes or "",
         ]
         for col, val in enumerate(data, 1):
@@ -382,14 +371,15 @@ def pre_items_export_excel():
             if col == 1:
                 cell.font = Font(bold=True)
                 cell.alignment = Alignment(horizontal="center")
-            if col in (4, 7) and val:
+            if col in (5, 8) and val:
                 cell.number_format = "#,##0"
                 cell.alignment = Alignment(horizontal="right")
 
     # Column widths
-    widths = [12, 30, 12, 14, 20, 20, 16, 30]
-    for i, w in enumerate(widths, 1):
-        ws.column_dimensions[chr(64 + i)].width = w
+    widths = [12, 30, 16, 12, 14, 20, 20, 16, 14, 14, 30]
+    col_letter = "ABCDEFGHIJK"
+    for i, w in enumerate(widths):
+        ws.column_dimensions[col_letter[i]].width = w
 
     buf = BytesIO()
     wb.save(buf)
