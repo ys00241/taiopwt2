@@ -8,6 +8,18 @@
 {% block content %}
 <div class="max-w-7xl mx-auto">
 
+  <!-- ═══ Year Selector ═══ -->
+  <div class="flex items-center gap-md mb-lg">
+    <span class="material-symbols-outlined" style="color: var(--on-surface-variant); font-size: 1.25rem;">calendar_month</span>
+    <select class="form-input" style="width: auto; min-width: 120px;" onchange="window.location.href='/?year=' + this.value">
+      {% for y in stats.years|default([]) %}
+      <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}年</option>
+      {% endfor %}
+      <option value="{{ year }}" selected>{{ year }}年</option>
+    </select>
+    <span class="font-label-lg" style="color: var(--on-surface-variant);">年度報表</span>
+  </div>
+
   <!-- ═══ Stat Cards Grid ═══ -->
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md mb-lg">
     {{ stat_card("競投總額", "$%s"|format(stats.bid_total|int), "payments", "var(--primary)") }}
@@ -48,8 +60,8 @@
     <!-- Recent Bids -->
     <div class="imperial-card">
       <div class="flex items-center justify-between mb-md">
-        <h2 class="font-headline-md" style="color: var(--on-surface);">最近競投</h2>
-        <a href="{{ url_for('bids.list_bids') }}" class="font-body-sm" style="color: var(--primary); text-decoration: none;">
+        <h2 class="font-headline-md" style="color: var(--on-surface);">最近競投 ({{ year }}年)</h2>
+        <a href="{{ url_for('pre_event.pre_items', year=year) }}" class="font-body-sm" style="color: var(--primary); text-decoration: none;">
           查看全部 &rarr;
         </a>
       </div>
@@ -58,7 +70,7 @@
       <table class="imperial-table">
         <thead>
           <tr>
-            <th>會員</th>
+            <th>投得者</th>
             <th>聖物</th>
             <th>金額</th>
             <th>狀態</th>
@@ -67,8 +79,8 @@
         <tbody>
           {% for bid in recent_bids %}
           <tr>
-            <td>{{ bid.member.name if bid.member else '—' }}</td>
-            <td>{{ bid.item.name if bid.item else '—' }}</td>
+            <td>{{ bid.member_name or '—' }}</td>
+            <td>{{ bid.item_name or '—' }}</td>
             <td>${{ bid.bid_amount|int }}</td>
             <td>
               {% if bid.paid_amount and bid.paid_amount >= bid.bid_amount %}
@@ -148,7 +160,6 @@
 
 {% block scripts %}
 <script>
-  // Any dashboard-specific JS can go here
   console.log('Dashboard loaded — 寶榮堂花炮會');
 </script>
 {% endblock %}

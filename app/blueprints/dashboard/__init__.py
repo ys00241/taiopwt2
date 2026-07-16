@@ -47,22 +47,59 @@ def dashboard():
         Bid.year == prev_year, Bid.paid_amount == 0, Bid.bid_amount > 0
     ).count()
 
-    # NEW: 競投總額(本年) — total bid amount for current year
+    # 競投總額(本年) — query ThisYearItem (NOT Bid, since Bid may be empty)
     bid_total = (
-        db.session.query(func.coalesce(func.sum(Bid.bid_amount), 0))
-        .filter(Bid.year == year, Bid.bid_amount > 0)
+        db.session.query(func.coalesce(func.sum(ThisYearItem.bid_amount), 0))
+        .filter(ThisYearItem.year == year, ThisYearItem.bid_amount > 0)
         .scalar()
     )
 
-    # NEW: 已收金額(本年) — total paid amount for current year
-    paid_total = (
-        db.session.query(func.coalesce(func.sum(Bid.paid_amount), 0))
-        .filter(Bid.year == year)
+    # 已收金額(本年) — paid_amount on this_year_items + live_income
+    paid_in_items = (
+        db.session.query(func.coalesce(func.sum(ThisYearItem.paid_amount), 0))
+        .filter(ThisYearItem.year == year, ThisYearItem.paid_amount > 0)
         .scalar()
     )
+    from app.models.live_income import LiveIncome
+    live_collected = (
+        db.session.query(func.coalesce(func.sum(LiveIncome.amount), 0))
+        .filter(LiveIncome.source_year == year)
+        .scalar()
+    )
+    paid_total = paid_in_items + live_collected
 
-    # NEW: 未收金額(本年) — unpaid balance for current year
+    # 未收金額(本年)
     unpaid_total = bid_total - paid_total
+
+    # Recent bids — from ThisYearItem directly (not Bid)
+    recent_bids_data = (
+        ThisYearItem.query
+        .filter(ThisYearItem.year == year, ThisYearItem.bidder_name != "", ThisYearItem.bid_amount > 0)
+        .order_by(ThisYearItem.sticker_no)
+        .limit(10)
+        .all()
+    )
+    recent_bids = []
+    for tyi in recent_bids_data:
+        recent_bids.append({
+            "member_name": tyi.bidder_name,
+            "item_name": tyi.item_name,
+            "bid_amount": tyi.bid_amount,
+            "paid_amount": tyi.paid_amount,
+        })
+
+    # Upcoming events — from Edition
+    upcoming_q = Edition.query.filter(
+        Edition.year >= datetime.now().year
+    ).order_by(Edition.year).limit(5).all()
+    upcoming_events = []
+    for ed in upcoming_q:
+        upcoming_events.append({
+            "day": ed.event_date[-2:] if ed.event_date and len(ed.event_date) >= 2 else str(ed.year),
+            "month": f"{ed.year}年",
+            "title": f"第{ed.edition_no or '?'}屆花炮會",
+            "description": ed.venue or "",
+        })
 
     stats = {
         "members": members_count,
@@ -75,4 +112,10 @@ def dashboard():
         "unpaid_total": unpaid_total,
     }
 
-    return render_template("dashboard/dashboard.html", stats=stats, year=year)
+    return render_template(
+        "dashboard/dashboard.html",
+        stats=stats,
+        year=year,
+        recent_bids=recent_bids,
+        upcoming_events=upcoming_events,
+    )
