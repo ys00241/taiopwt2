@@ -703,6 +703,34 @@
   });
 
   // ════════════════════════════════════════
+  // Click handler for member result cards (delegated)
+  // ════════════════════════════════════════
+  document.addEventListener('click', function(e) {
+    var card = e.target.closest('.member-result-card');
+    if (!card) return;
+    var memberId = parseInt(card.dataset.memberId);
+    var memberName = card.dataset.memberName || '';
+    var bidDue = parseInt(card.dataset.bidDue || '0');
+    var feeDue = parseInt(card.dataset.feeDue || '0');
+    var totalDue = parseInt(card.dataset.totalDue || '0');
+    var totalPaid = parseInt(card.dataset.totalPaid || '0');
+    var unpaid = parseInt(card.dataset.unpaid || '0');
+    openPaymentSheet(memberId, memberName, bidDue, feeDue, totalDue, totalPaid, unpaid);
+  });
+
+  // Also handle search result items
+  document.addEventListener('click', function(e) {
+    var item = e.target.closest('[data-member-id]');
+    if (!item || item.closest('.member-result-card')) return;
+    if (!item.closest('#searchResults') && !item.closest('#memberResult')) return;
+    var memberId = parseInt(item.dataset.memberId);
+    // Find full member data
+    var match = membersWithDebt.find(function(m) { return m.member_id === memberId; }) ||
+                members.find(function(m) { return m.member_id === memberId; });
+    if (match) showMemberResult(match);
+  });
+
+  // ════════════════════════════════════════
   // Auto-search on page load (member_id
   // from clickable debt links elsewhere)
   // ════════════════════════════════════════
