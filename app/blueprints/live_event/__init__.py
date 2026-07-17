@@ -65,6 +65,14 @@ def live_bidding():
     # Build members JSON for JS autocomplete — escape < and > to prevent </script> injection
     members_json = json.dumps([{"id": m.member_id, "name": m.name, "phone": m.phone or ""} for m in members], ensure_ascii=True).replace('<', '\\u003c').replace('>', '\\u003e')
 
+    # Users for 操作員 dropdown
+    from app.models.user import User
+    users = User.query.order_by(User.display_name).all()
+    users_json = json.dumps(
+        [{"id": u.id, "display_name": u.display_name or u.username} for u in users],
+        ensure_ascii=True,
+    ).replace('<', '\\u003c').replace('>', '\\u003e')
+
     return render_template(
         "live_event/bidding.html",
         available=available, won=won,
@@ -73,6 +81,9 @@ def live_bidding():
         items_all=items,
         members=members,
         members_json=members_json,
+        users=users,
+        users_json=users_json,
+        current_user_display_name=current_user.display_name or current_user.username,
         years=years,
         year=year,
         stats=stats,
@@ -91,7 +102,9 @@ def live_bidding_record():
     paid_amount = float(request.form.get("paid_amount", 0) or 0)
     payment_method = request.form.get("payment_method", "")
     paid_handler = request.form.get("paid_handler", "").strip()
-    member_id = request.form.get("member_id", type=int)
+    member_id = request.form.get("member_id", type=int) or 0
+    referrer_id = request.form.get("referrer_id", type=int) or 0
+    operator = request.form.get("operator", "").strip() or (current_user.display_name or current_user.username)
 
     item = db.session.get(ThisYearItem, item_id)
     if not item:
@@ -106,37 +119,51 @@ def live_bidding_record():
     item.paid_handler = paid_handler if paid_amount > 0 else item.paid_handler
 
     # Also create/update a Bid record for payment/debt tracking
-    if member_id and bid_amount > 0:
+    if bid_amount > 0:
         from sqlalchemy import func as sa_func
-        member = db.session.get(Member, member_id)
-        if member:
-            item_record = None
-            if item.sticker_no:
-                item_record = Item.query.filter_by(item_id=item.sticker_no).first()
-            if item_record:
-                existing_bid = Bid.query.filter_by(
-                    member_id=member_id,
+        # Resolve member: if member_id > 0 and exists, link to Member; else store as free-text
+        resolved_member_id = None
+        if member_id > 0:
+            member = db.session.get(Member, member_id)
+            if member:
+                resolved_member_id = member_id
+                if not bidder_name:
+                    bidder_name = member.name
+
+        item_record = None
+        if item.sticker_no:
+            item_record = Item.query.filter_by(item_id=item.sticker_no).first()
+
+        if resolved_member_id and item_record:
+            existing_bid = Bid.query.filter_by(
+                member_id=resolved_member_id,
+                year=item.year,
+                item_id=item_record.item_id,
+            ).first()
+            if existing_bid:
+                existing_bid.bid_amount = bid_amount
+                existing_bid.paid_amount = paid_amount
+                existing_bid.payment_method = payment_method if paid_amount > 0 else existing_bid.payment_method
+                existing_bid.handler = handler or existing_bid.handler
+                if referrer_id:
+                    existing_bid.referrer_id = referrer_id
+                if operator:
+                    existing_bid.operator = operator
+            else:
+                max_bid_no = db.session.query(sa_func.max(Bid.bid_no)).filter(Bid.year == item.year).scalar()
+                bid = Bid(
                     year=item.year,
+                    member_id=resolved_member_id,
+                    referrer_id=referrer_id if referrer_id > 0 else None,
                     item_id=item_record.item_id,
-                ).first()
-                if existing_bid:
-                    existing_bid.bid_amount = bid_amount
-                    existing_bid.paid_amount = paid_amount
-                    existing_bid.payment_method = payment_method if paid_amount > 0 else existing_bid.payment_method
-                    existing_bid.handler = handler or existing_bid.handler
-                else:
-                    max_bid_no = db.session.query(sa_func.max(Bid.bid_no)).filter(Bid.year == item.year).scalar()
-                    bid = Bid(
-                        year=item.year,
-                        member_id=member_id,
-                        item_id=item_record.item_id,
-                        bid_amount=bid_amount,
-                        paid_amount=paid_amount,
-                        payment_method=payment_method if paid_amount > 0 else "",
-                        handler=handler,
-                        bid_no=(max_bid_no or 0) + 1,
-                    )
-                    db.session.add(bid)
+                    bid_amount=bid_amount,
+                    paid_amount=paid_amount,
+                    payment_method=payment_method if paid_amount > 0 else "",
+                    handler=handler,
+                    operator=operator,
+                    bid_no=(max_bid_no or 0) + 1,
+                )
+                db.session.add(bid)
 
     db.session.commit()
     # If AJAX request (from JS fetch), return JSON. Otherwise redirect back.
@@ -414,6 +441,14 @@ def live_payments():
         .all()
     ]
 
+    # Users for 操作員 dropdown
+    from app.models.user import User
+    users = User.query.order_by(User.display_name).all()
+    users_json = json.dumps(
+        [{"id": u.id, "display_name": u.display_name or u.username} for u in users],
+        ensure_ascii=True,
+    ).replace('<', '\\u003c').replace('>', '\\u003e')
+
     return render_template(
         "live_event/payments.html",
         members=result, members_json=json.dumps(result),
@@ -422,6 +457,9 @@ def live_payments():
         recent_payments=recent,
         year=year, source_year=source_year, search=search,
         years=years, show_bad_debt=show_bad_debt,
+        users=users,
+        users_json=users_json,
+        current_user_display_name=current_user.display_name or current_user.username,
     )
 
 
@@ -436,7 +474,7 @@ def live_payments_pay():
     source_year = int(source_year_str) if source_year_str else (year - 1)
     amount = float(request.form.get("amount", 0) or 0)
     payment_method = request.form.get("payment_method", "CASH")
-    handler = request.form.get("handler", "")
+    handler = request.form.get("handler", "").strip() or (current_user.display_name or current_user.username)
     remarks = request.form.get("remarks", "")
 
     # Record payment in live_income
@@ -629,7 +667,7 @@ def live_expenses_live_add():
         subject=request.form.get("subject", ""),
         amount=float(request.form.get("amount", 0) or 0),
         payment_method=request.form.get("payment_method", ""),
-        handler=request.form.get("handler", ""),
+        handler=request.form.get("handler", "").strip() or (current_user.display_name or current_user.username),
         details=request.form.get("details", ""),
     )
     db.session.add(expense)

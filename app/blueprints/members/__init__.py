@@ -372,6 +372,28 @@ def delete_member(member_id):
     return jsonify({"ok": True})
 
 
+@bp.route("/api/members/search")
+@login_required
+def api_members_search():
+    """Search members by name (ilike) — returns [{member_id, name, member_type, phone}] limit 20."""
+    q = request.args.get("q", "").strip()
+    if not q:
+        return jsonify([])
+    members = (
+        Member.query
+        .filter(Member.name.ilike(f"%{q}%"))
+        .order_by(Member.name)
+        .limit(20)
+        .all()
+    )
+    return jsonify([{
+        "member_id": m.member_id,
+        "name": m.name,
+        "member_type": m.member_type or "member",
+        "phone": m.phone or "",
+    } for m in members])
+
+
 @bp.route("/members/export")
 @login_required
 def export_members():

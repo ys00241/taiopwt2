@@ -23,6 +23,12 @@ class Bid(db.Model):
         nullable=False,
         comment="會員編號",
     )
+    referrer_id = db.Column(
+        db.Integer,
+        db.ForeignKey("members.member_id"),
+        nullable=True,
+        comment="經手人會員編號 (介紹人)",
+    )
     item_id = db.Column(
         db.Integer,
         db.ForeignKey("items.item_id"),
@@ -33,6 +39,7 @@ class Bid(db.Model):
     paid_amount = db.Column(db.Float, default=0, comment="已付金額")
     payment_method = db.Column(db.String(50), comment="付款方式")
     handler = db.Column(db.String(100), comment="經手人")
+    operator = db.Column(db.String(100), default="", comment="操作員")
     photo_no = db.Column(db.String(100), comment="相片編號")
     receipt_no = db.Column(db.String(100), comment="收據編號")
     bid_no = db.Column(db.Integer, comment="投標編號")

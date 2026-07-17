@@ -1,0 +1,441 @@
+<!-- ═══════════════════════════════════════════════════════════════
+     Reusable Combobox Component — dropdown + wildcard search + free text
+     Usage:
+       1) Include this template in your {% block head %}:
+          {% include "components/combobox.html" %}
+       2) In your scripts block, create combobox instances:
+          const cb = createCombobox({
+            inputId: 'myInput',
+            hiddenId: 'myHidden',
+            listId: 'myList',
+            options: [{id, name, type?}],
+            placeholder: 'Type or select...',
+            freeText: true,   // allow typing custom values not in list
+            onSelect: (item) => { ... },
+          });
+     ═══════════════════════════════════════════════════════════════ -->
+
+<style>
+  /* ── Combobox wrapper ── */
+  .combobox-wrapper { position: relative; }
+
+  /* ── Input styling (reuses .form-input from base) ── */
+  .combobox-input {
+    width: 100%;
+    padding: 0.625rem 0.875rem;
+    border: 1px solid var(--outline-variant);
+    border-radius: 10px;
+    background: var(--surface);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.875rem;
+    color: var(--on-surface);
+    outline: none;
+    transition: border-color 0.15s;
+    cursor: default;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .combobox-input:focus {
+    border-color: var(--primary);
+  }
+  .combobox-input::placeholder {
+    color: var(--on-surface-variant);
+    opacity: 0.5;
+  }
+
+  /* ── Dropdown caret ── */
+  .combobox-caret {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: var(--on-surface-variant);
+    font-size: 1.125rem;
+    transition: transform 0.2s;
+  }
+  .combobox-caret.open {
+    transform: translateY(-50%) rotate(180deg);
+  }
+
+  /* ── Dropdown list ── */
+  .combobox-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: var(--surface);
+    border: 1px solid var(--outline-variant);
+    border-radius: 10px;
+    margin-top: 0.25rem;
+    max-height: 240px;
+    overflow-y: auto;
+    display: none;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+  }
+  .combobox-dropdown.open { display: block; }
+
+  /* ── Dropdown items ── */
+  .combobox-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 0.875rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.875rem;
+    color: var(--on-surface);
+    cursor: pointer;
+    transition: background 0.1s;
+    border-bottom: 1px solid var(--outline-variant);
+  }
+  .combobox-item:last-child { border-bottom: none; }
+  .combobox-item:hover,
+  .combobox-item.active {
+    background: var(--surface-container);
+  }
+  .combobox-item .type-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.0625rem 0.375rem;
+    border-radius: 4px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 0.6875rem;
+    background: var(--surface-variant);
+    color: var(--on-surface-variant);
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  /* ── No results message ── */
+  .combobox-empty {
+    padding: 1rem;
+    text-align: center;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8125rem;
+    color: var(--on-surface-variant);
+  }
+
+  /* ── Free-text indicator ── */
+  .combobox-free-text {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0.875rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.75rem;
+    color: var(--on-surface-variant);
+    border-top: 1px dashed var(--outline-variant);
+    background: var(--surface-container);
+    border-radius: 0 0 10px 10px;
+  }
+
+  @media (max-width: 640px) {
+    .combobox-dropdown {
+      max-height: 200px;
+    }
+  }
+</style>
+
+<script>
+/**
+ * Create a reusable combobox (dropdown + wildcard search + free text).
+ *
+ * @param {Object} opts
+ * @param {string} opts.inputId     - ID of the <input> element
+ * @param {string} opts.hiddenId    - ID of the hidden <input> for the selected ID (optional)
+ * @param {string} opts.listId      - ID for the dropdown <div> (optional, auto-generated)
+ * @param {Array}  opts.options     - [{id, name, type?}] — available options
+ * @param {string} opts.placeholder - Input placeholder text
+ * @param {boolean} opts.freeText   - Allow typing values NOT in the list (default: true)
+ * @param {function} opts.onSelect  - Callback when an item is selected: (item) => void
+ * @param {function} opts.onChange  - Callback when input value changes (free text or select): (value) => void
+ * @returns {Object} { setOptions, setValue, getValue, getSelected, clear, destroy }
+ */
+function createCombobox(opts) {
+  const {
+    inputId,
+    hiddenId = null,
+    listId = inputId + '_list',
+    options = [],
+    placeholder = '',
+    freeText = true,
+    onSelect = null,
+    onChange = null,
+  } = opts;
+
+  const input = document.getElementById(inputId);
+  if (!input) {
+    console.error('Combobox: input element #' + inputId + ' not found');
+    return null;
+  }
+
+  const hidden = hiddenId ? document.getElementById(hiddenId) : null;
+  const wrapper = input.parentElement;
+  wrapper.classList.add('combobox-wrapper');
+
+  // Create dropdown container
+  let dropdown = document.getElementById(listId);
+  if (!dropdown) {
+    dropdown = document.createElement('div');
+    dropdown.id = listId;
+    dropdown.className = 'combobox-dropdown';
+    wrapper.appendChild(dropdown);
+  }
+
+  // Add caret indicator
+  let caret = wrapper.querySelector('.combobox-caret');
+  if (!caret) {
+    caret = document.createElement('span');
+    caret.className = 'combobox-caret material-symbols-outlined';
+    caret.textContent = 'expand_more';
+    wrapper.appendChild(caret);
+  }
+
+  // Store current state
+  let currentOptions = options;
+  let selectedItem = null;
+  let filteredItems = [];
+  let activeIndex = -1;
+  let isOpen = false;
+  let suppressBlur = false;
+
+  // ─── Render filtered items ───
+  function render() {
+    const q = input.value.trim().toLowerCase();
+
+    if (!q) {
+      filteredItems = currentOptions;
+    } else {
+      filteredItems = currentOptions.filter(function(item) {
+        return (item.name || '').toLowerCase().includes(q);
+      });
+    }
+
+    if (filteredItems.length === 0 || !isOpen) {
+      dropdown.classList.remove('open');
+      caret.classList.remove('open');
+      return;
+    }
+
+    dropdown.classList.add('open');
+    caret.classList.add('open');
+
+    let html = '';
+    filteredItems.forEach(function(item, idx) {
+      const typeLabel = item.type ? '<span class="type-badge">' + escapeHtml(item.type) + '</span>' : '';
+      html += '<div class="combobox-item" data-index="' + idx + '" data-id="' + (item.id != null ? item.id : '') + '">'
+        + '<span>' + escapeHtml(item.name) + '</span>' + typeLabel + '</div>';
+    });
+
+    dropdown.innerHTML = html;
+    activeIndex = -1;
+
+    // Click on item
+    dropdown.querySelectorAll('.combobox-item').forEach(function(el) {
+      el.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const idx = parseInt(el.dataset.index);
+        if (idx >= 0 && idx < filteredItems.length) {
+          selectItem(filteredItems[idx]);
+        }
+      });
+    });
+  }
+
+  // ─── Select an item ───
+  function selectItem(item) {
+    selectedItem = item;
+    input.value = item.name;
+    if (hidden) hidden.value = item.id != null ? item.id : '';
+    closeDropdown();
+    if (onSelect) onSelect(item);
+    if (onChange) onChange(item.name);
+  }
+
+  // ─── Open dropdown ───
+  function openDropdown() {
+    isOpen = true;
+    render();
+  }
+
+  // ─── Close dropdown ───
+  function closeDropdown() {
+    isOpen = false;
+    dropdown.classList.remove('open');
+    caret.classList.remove('open');
+    activeIndex = -1;
+  }
+
+  // ─── Toggle dropdown ───
+  function toggleDropdown() {
+    if (isOpen) {
+      closeDropdown();
+    } else {
+      openDropdown();
+    }
+  }
+
+  // ─── Escape HTML ───
+  function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // ─── Input event: filter dropdown ───
+  input.addEventListener('input', function() {
+    selectedItem = null;
+    if (hidden) hidden.value = '';
+    if (onChange) onChange(input.value);
+    if (!isOpen) openDropdown();
+    else render();
+  });
+
+  // ─── Focus: show all options ───
+  input.addEventListener('focus', function() {
+    openDropdown();
+  });
+
+  // ─── Click on input: toggle dropdown ───
+  input.addEventListener('click', function(e) {
+    e.stopPropagation();
+    // If already focused and dropdown is closed, open it
+    if (!isOpen) {
+      openDropdown();
+    }
+  });
+
+  // ─── Keyboard navigation ───
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!isOpen) { openDropdown(); return; }
+      activeIndex = Math.min(activeIndex + 1, filteredItems.length - 1);
+      highlightActive();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!isOpen) return;
+      activeIndex = Math.max(activeIndex - 1, -1);
+      highlightActive();
+    } else if (e.key === 'Enter') {
+      if (isOpen && activeIndex >= 0 && activeIndex < filteredItems.length) {
+        e.preventDefault();
+        selectItem(filteredItems[activeIndex]);
+      } else if (isOpen) {
+        // Free text — just close dropdown, keep typed value
+        closeDropdown();
+      }
+    } else if (e.key === 'Escape') {
+      closeDropdown();
+    } else if (e.key === 'Tab') {
+      closeDropdown();
+    }
+  });
+
+  function highlightActive() {
+    const items = dropdown.querySelectorAll('.combobox-item');
+    items.forEach(function(el, idx) {
+      el.classList.toggle('active', idx === activeIndex);
+    });
+    if (activeIndex >= 0 && items[activeIndex]) {
+      items[activeIndex].scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  // ─── Click outside: close ───
+  document.addEventListener('click', function(e) {
+    if (!wrapper.contains(e.target)) {
+      closeDropdown();
+    }
+  });
+
+  // ─── External API ───
+  return {
+    /** Replace options and re-render */
+    setOptions: function(newOptions) {
+      currentOptions = newOptions;
+      if (isOpen) render();
+    },
+    /** Set value programmatically (value/label) */
+    setValue: function(value, itemId) {
+      input.value = value || '';
+      if (hidden && itemId != null) hidden.value = itemId;
+      selectedItem = itemId ? { id: itemId, name: value } : null;
+      if (onChange) onChange(value);
+    },
+    /** Get current input value (text) */
+    getValue: function() { return input.value; },
+    /** Get selected item object, or null if free-text */
+    getSelected: function() { return selectedItem; },
+    /** Clear the combobox */
+    clear: function() {
+      input.value = '';
+      if (hidden) hidden.value = '';
+      selectedItem = null;
+      closeDropdown();
+    },
+    /** Destroy event listeners and DOM additions */
+    destroy: function() {
+      closeDropdown();
+      if (caret && caret.parentElement) caret.parentElement.removeChild(caret);
+      if (dropdown && dropdown.parentElement) dropdown.parentElement.removeChild(dropdown);
+      wrapper.classList.remove('combobox-wrapper');
+    },
+  };
+}
+
+/**
+ * Create a combobox from a <select> element, converting it into the combobox UI.
+ * Hides the original select and creates an input + dropdown.
+ *
+ * @param {string} selectId - ID of the <select> element to upgrade
+ * @param {Object} opts - Additional options (same as createCombobox)
+ * @returns {Object} Combobox API
+ */
+function upgradeSelectToCombobox(selectId, opts) {
+  const select = document.getElementById(selectId);
+  if (!select) return null;
+
+  const options = [];
+  for (var i = 0; i < select.options.length; i++) {
+    var opt = select.options[i];
+    if (opt.value) {
+      options.push({ id: opt.value, name: opt.text, type: opt.dataset.type || '' });
+    }
+  }
+
+  // Create the input
+  var inputId = selectId + '_input';
+  var hiddenId = selectId + '_hidden';
+  var input = document.createElement('input');
+  input.type = 'text';
+  input.id = inputId;
+  input.className = 'combobox-input';
+  input.placeholder = opts.placeholder || '選擇或輸入...';
+  input.autocomplete = 'off';
+
+  var hidden = document.createElement('input');
+  hidden.type = 'hidden';
+  hidden.id = hiddenId;
+  hidden.name = select.name;
+
+  select.parentNode.insertBefore(input, select);
+  select.parentNode.insertBefore(hidden, select);
+  select.style.display = 'none';
+
+  return createCombobox({
+    inputId: inputId,
+    hiddenId: hiddenId,
+    options: options,
+    placeholder: opts.placeholder || '選擇或輸入...',
+    freeText: opts.freeText !== undefined ? opts.freeText : true,
+    onSelect: opts.onSelect || null,
+    onChange: opts.onChange || null,
+  });
+}
+</script>

@@ -4,6 +4,7 @@
 {% block page_title %}競投台 Bidding{% endblock %}
 
 {% block head %}
+{% include "components/combobox.html" %}
 <style>
   /* ═══════════════════════════════════════════
      Mobile-first Bidding Page — Stitch Design
@@ -395,28 +396,42 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
       <input type="hidden" name="item_id" id="bidItemId" value="">
 
-      <!-- Member search -->
-      <div class="autocomplete-wrapper mb-md">
-        <label class="form-label">競投者</label>
-        <input type="text" class="form-input" id="memberSearch" name="bidder_name" placeholder="輸入會員名稱搜尋..." autocomplete="off">
-        <input type="hidden" name="member_id" id="selectedMemberId" value="">
-        <div class="autocomplete-results" id="memberResults"></div>
+      <!-- 競投者 (combobox with members) -->
+      <div class="mb-md">
+        <label class="form-label">競投者 Bidder</label>
+        <input type="text" class="combobox-input" id="bidderInput" placeholder="輸入會員名稱或直接輸入姓名..." autocomplete="off">
+        <input type="hidden" name="member_id" id="bidderMemberId" value="">
+        <input type="hidden" name="bidder_name" id="bidderName" value="">
+      </div>
+
+      <!-- 會員 (combobox with members, mirrors 競投者) -->
+      <div class="mb-md">
+        <label class="form-label">會員 Member</label>
+        <input type="text" class="combobox-input" id="memberInput" placeholder="輸入會員名稱... (預設與競投者相同)" autocomplete="off">
+        <input type="hidden" name="member_id_for_payment" id="memberHiddenId" value="">
+      </div>
+
+      <!-- 經手人 (combobox with members) -->
+      <div class="mb-md">
+        <label class="form-label">經手人 Handler</label>
+        <input type="text" class="combobox-input" id="handlerInput" placeholder="輸入經手人姓名..." autocomplete="off">
+        <input type="hidden" name="handler" id="handlerValue" value="">
+      </div>
+
+      <!-- 操作員 (simple dropdown with users) -->
+      <div class="mb-md">
+        <label class="form-label">操作員 Operator</label>
+        <select class="form-input" name="operator" id="operatorSelect">
+          {% for u in users %}
+          <option value="{{ u.display_name or u.username }}" {% if (u.display_name or u.username) == current_user_display_name %}selected{% endif %}>{{ u.display_name or u.username }}</option>
+          {% endfor %}
+        </select>
       </div>
 
       <!-- Bid amount -->
       <div class="mb-md">
         <label class="form-label">競投金額</label>
         <input type="number" class="bid-amount-input" id="bidAmount" name="bid_amount" required min="0" step="1" placeholder="$" inputmode="numeric">
-      </div>
-
-      <!-- Handler -->
-      <div class="mb-md">
-        <label class="form-label">經手人</label>
-        <select class="form-input" id="handler" name="handler">
-          <option value="">選擇經手人</option>
-          <option value="管理員">管理員</option>
-          <option value="工作人員">工作人員</option>
-        </select>
       </div>
 
       <!-- Optional payment -->
