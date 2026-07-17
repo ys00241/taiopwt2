@@ -132,7 +132,7 @@ def create_app(config_name: str | None = None) -> Flask:
         all_years = sorted(years, reverse=True) if years else [datetime.now().year]
 
         return {
-            "app_version": flask_app.config.get("VERSION", "v2.0.0"),
+            "app_version": flask_app.config.get("VERSION", "v2.1.0"),
             "current_year": datetime.now().year,
             "all_years": all_years,
         }
