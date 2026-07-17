@@ -4,6 +4,7 @@
 {% block page_title %}收款台 Payments{% endblock %}
 
 {% block head %}
+{% include "components/combobox.html" %}
 <style>
   /* ═══════════════════════════════════════════
      Mobile-first Payment Desk — Stitch Design
@@ -241,7 +242,8 @@
     <div class="label">收款 Payment Desk</div>
     <div class="payment-search-box">
       <span class="material-symbols-outlined">search</span>
-      <input type="text" id="paymentSearch" placeholder="輸入會員姓名搜尋..." autocomplete="off" oninput="searchMember(this.value)">
+      <input type="text" id="paymentSearchInput" class="combobox-input" style="flex:1;border:none;background:transparent;outline:none;font-family:'Inter',sans-serif;font-size:1rem;color:#ffffff;padding:0;" placeholder="輸入會員姓名搜尋..." autocomplete="off">
+      <input type="hidden" id="paymentSearchMemberId" value="">
     </div>
     <div class="flex items-center gap-sm mt-sm" style="min-height: 2rem;">
       <label class="flex items-center gap-xs" style="cursor: pointer; color: rgba(255,255,255,0.8); font-family: 'Inter', sans-serif; font-size: 0.8125rem;">
@@ -413,12 +415,13 @@
         <input type="hidden" name="payment_method" id="payMethod" value="CASH">
       </div>
 
-      <!-- Handler -->
+      <!-- 操作員 Operator -->
       <div class="mb-md">
-        <label class="form-label">經手人</label>
-        <select class="form-input" name="handler">
-          <option value="管理員">管理員</option>
-          <option value="工作人員">工作人員</option>
+        <label class="form-label">操作員 Operator</label>
+        <select class="form-input" name="handler" id="payOperatorSelect">
+          {% for u in users %}
+          <option value="{{ u.display_name or u.username }}" {% if (u.display_name or u.username) == current_user_display_name %}selected{% endif %}>{{ u.display_name or u.username }}</option>
+          {% endfor %}
         </select>
       </div>
 
@@ -443,104 +446,72 @@
   let membersWithDebt = {{ members_with_debt|tojson }};
 
   // ════════════════════════════════════════
-  // Debtor list — event delegation
+  // Initialize Search Combobox
   // ════════════════════════════════════════
-  document.addEventListener('DOMContentLoaded', function () {
-    const debtorList = document.getElementById('debtorList');
-    if (debtorList) {
-      debtorList.addEventListener('click', function (e) {
-        const card = e.target.closest('.member-result-card');
-        if (!card) return;
-        const mId = card.dataset.memberId;
-        const mName = card.dataset.memberName;
-        const bd = parseFloat(card.dataset.bidDue) || 0;
-        const fd = parseFloat(card.dataset.feeDue) || 0;
-        const d = parseFloat(card.dataset.totalDue) || 0;
-        const p = parseFloat(card.dataset.totalPaid) || 0;
-        const u = parseFloat(card.dataset.unpaid) || 0;
-        openPaymentSheet(mId, mName, bd, fd, d, p, u);
-      });
-    }
-    // Search results (dynamically inserted)
-    const memberResult = document.getElementById('memberResult');
-    if (memberResult) {
-      memberResult.addEventListener('click', function (e) {
-        const card = e.target.closest('.member-result-card');
-        if (!card) return;
-        const mId = card.dataset.memberId;
-        const mName = card.dataset.memberName;
-        const bd = parseFloat(card.dataset.bidDue) || 0;
-        const fd = parseFloat(card.dataset.feeDue) || 0;
-        const d = parseFloat(card.dataset.totalDue) || 0;
-        const p = parseFloat(card.dataset.totalPaid) || 0;
-        const u = parseFloat(card.dataset.unpaid) || 0;
-        openPaymentSheet(mId, mName, bd, fd, d, p, u);
-      });
-    }
-    // Search dropdown results
-    const searchResults = document.getElementById('searchResults');
-    if (searchResults) {
-      searchResults.addEventListener('click', function (e) {
-        const item = e.target.closest('[data-member-id]');
-        if (!item) return;
-        const mId = item.dataset.memberId;
-        const mName = item.dataset.memberName;
-        const bd = parseFloat(item.dataset.bidDue) || 0;
-        const fd = parseFloat(item.dataset.feeDue) || 0;
-        const d = parseFloat(item.dataset.totalDue) || 0;
-        const p = parseFloat(item.dataset.totalPaid) || 0;
-        const u = parseFloat(item.dataset.unpaid) || 0;
-        showMemberResult({member_id: parseInt(mId), name: mName, bid_due: bd, fee_due: fd, total_due: d, total_paid: p, unpaid: u});
-      });
-    }
+  const memberSearchOptions = membersWithDebt.map(function(m) {
+    return { id: m.member_id, name: m.name, type: '' };
   });
 
-  // ════════════════════════════════════════
-  // Member Search
-  // ════════════════════════════════════════
-  let searchTimeout;
+  const paySearchCb = createCombobox({
+    inputId: 'paymentSearchInput',
+    hiddenId: 'paymentSearchMemberId',
+    options: memberSearchOptions,
+    placeholder: '輸入會員姓名搜尋...',
+    freeText: true,
+    onSelect: function(item) {
+      // Find full member data and show result
+      const match = membersWithDebt.find(function(m) { return m.member_id === item.id; }) ||
+                    members.find(function(m) { return m.member_id === item.id; });
+      if (match) {
+        showMemberResult(match);
+      }
+    },
+    onChange: function(value) {
+      // Debounced search
+      clearTimeout(searchTimeout);
+      const q = value.trim().toLowerCase();
+      const resultsDiv = document.getElementById('searchResults');
+      const memberDiv = document.getElementById('memberResult');
+      const debtorList = document.getElementById('debtorList');
 
-  function searchMember(query) {
-    clearTimeout(searchTimeout);
-    const resultsDiv = document.getElementById('searchResults');
-    const memberDiv = document.getElementById('memberResult');
-    const debtorList = document.getElementById('debtorList');
+      if (!q) {
+        resultsDiv.style.display = 'none';
+        memberDiv.style.display = 'none';
+        if (debtorList) debtorList.style.display = 'block';
+        return;
+      }
+      if (debtorList) debtorList.style.display = 'none';
 
-    if (!query.trim()) {
-      resultsDiv.style.display = 'none';
-      memberDiv.style.display = 'none';
-      if (debtorList) debtorList.style.display = 'block';
-      return;
-    }
+      searchTimeout = setTimeout(function() {
+        const matches = members.filter(function(m) { return (m.name || '').toLowerCase().includes(q); });
 
-    // Hide debtor list when searching
-    if (debtorList) debtorList.style.display = 'none';
+        if (matches.length === 0) {
+          resultsDiv.innerHTML = '<div class="font-body-sm" style="color: rgba(255,255,255,0.6); padding: 0.5rem 0;">找不到會員</div>';
+          resultsDiv.style.display = 'block';
+          memberDiv.style.display = 'none';
+          return;
+        }
 
-    searchTimeout = setTimeout(() => {
-      const q = query.toLowerCase().trim();
-      const matches = members.filter(m => m.name.toLowerCase().includes(q));
+        if (matches.length === 1) {
+          resultsDiv.style.display = 'none';
+          showMemberResult(matches[0]);
+          return;
+        }
 
-      if (matches.length === 0) {
-        resultsDiv.innerHTML = `<div class="font-body-sm" style="color: rgba(255,255,255,0.6); padding: 0.5rem 0;">找不到會員</div>`;
+        resultsDiv.innerHTML = matches.map(function(m) {
+          return '<div class="font-body-sm" style="color: #ffffff; padding: 0.5rem 0; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.1);"'
+            + ' data-member-id="' + m.member_id + '" data-member-name="' + ((m.name||'').replace(/'/g, '\\u0027').replace(/"/g, '\\u0022')) + '"'
+            + ' data-bid-due="' + (m.bid_due||0) + '" data-fee-due="' + (m.fee_due||0) + '"'
+            + ' data-total-due="' + (m.total_due||0) + '" data-total-paid="' + (m.total_paid||0) + '"'
+            + ' data-unpaid="' + (m.unpaid||0) + '">' + m.name + '</div>';
+        }).join('');
         resultsDiv.style.display = 'block';
         memberDiv.style.display = 'none';
-        return;
-      }
+      }, 200);
+    },
+  });
 
-      if (matches.length === 1) {
-        resultsDiv.style.display = 'none';
-        showMemberResult(matches[0]);
-        return;
-      }
-
-      resultsDiv.innerHTML = matches.map(m =>
-        `<div class="font-body-sm" style="color: #ffffff; padding: 0.5rem 0; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.1);"
-              data-member-id="${m.member_id}" data-member-name="${(m.name||'').replace(/'/g, '\\u0027').replace(/"/g, '\\u0022')}" data-bid-due="${m.bid_due||0}" data-fee-due="${m.fee_due||0}" data-total-due="${m.total_due||0}" data-total-paid="${m.total_paid||0}" data-unpaid="${m.unpaid||0}">${m.name}</div>`
-      ).join('');
-      resultsDiv.style.display = 'block';
-      memberDiv.style.display = 'none';
-    }, 200);
-  }
+  let searchTimeout;
 
   function toggleBadDebt(show) {
     // Reload the page with show_bad_debt param preserved
@@ -738,10 +709,21 @@
   (function() {
     const searchParam = {{ search|default("")|tojson }};
     if (searchParam) {
-      const input = document.getElementById('paymentSearch');
-      if (input) {
-        input.value = searchParam;
-        searchMember(searchParam);
+      paySearchCb.setValue(searchParam);
+      // Also trigger search filter
+      const matches = members.filter(function(m) { return (m.name || '').toLowerCase().includes(searchParam.toLowerCase()); });
+      if (matches.length === 1) {
+        showMemberResult(matches[0]);
+      } else if (matches.length > 1) {
+        const resultsDiv = document.getElementById('searchResults');
+        resultsDiv.innerHTML = matches.map(function(m) {
+          return '<div class="font-body-sm" style="color: #ffffff; padding: 0.5rem 0; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.1);"'
+            + ' data-member-id="' + m.member_id + '" data-member-name="' + ((m.name||'').replace(/'/g, '\\u0027').replace(/"/g, '\\u0022')) + '"'
+            + ' data-bid-due="' + (m.bid_due||0) + '" data-fee-due="' + (m.fee_due||0) + '"'
+            + ' data-total-due="' + (m.total_due||0) + '" data-total-paid="' + (m.total_paid||0) + '"'
+            + ' data-unpaid="' + (m.unpaid||0) + '">' + m.name + '</div>';
+        }).join('');
+        resultsDiv.style.display = 'block';
       }
     }
   })();

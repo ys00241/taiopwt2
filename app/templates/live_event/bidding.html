@@ -474,6 +474,50 @@
   let members = {{ members_json|default('[]')|safe }};
 
   // ════════════════════════════════════════
+  // Initialize Comboboxes
+  // ════════════════════════════════════════
+  const memberOptions = members.map(function(m) {
+    return { id: m.id, name: m.name, type: m.phone || '' };
+  });
+
+  // 競投者 combobox
+  const bidderCb = createCombobox({
+    inputId: 'bidderInput',
+    hiddenId: 'bidderMemberId',
+    options: memberOptions,
+    placeholder: '輸入會員名稱或直接輸入姓名...',
+    freeText: true,
+    onSelect: function(item) {
+      document.getElementById('bidderName').value = item.name;
+      // Mirror to 會員
+      if (!memberCb.getSelected()) {
+        memberCb.setValue(item.name, item.id);
+      }
+    },
+    onChange: function(value) {
+      document.getElementById('bidderName').value = value;
+    },
+  });
+
+  // 會員 combobox
+  const memberCb = createCombobox({
+    inputId: 'memberInput',
+    hiddenId: 'memberHiddenId',
+    options: memberOptions,
+    placeholder: '輸入會員名稱... (預設與競投者相同)',
+    freeText: true,
+  });
+
+  // 經手人 combobox
+  const handlerCb = createCombobox({
+    inputId: 'handlerInput',
+    hiddenId: 'handlerValue',
+    options: memberOptions,
+    placeholder: '輸入經手人姓名...',
+    freeText: true,
+  });
+
+  // ════════════════════════════════════════
   // Tab Switching
   // ════════════════════════════════════════
   function switchTab(tab) {
@@ -493,17 +537,23 @@
     document.getElementById('bidSheetTitle').textContent = `競投 #${String(stickerNo).padStart(2, '0')}`;
     document.getElementById('bidSheetItem').textContent = `${itemName} — 底價/成本: $${cost}`;
     document.getElementById('bidAmount').value = cost > 0 ? cost : '';
+    // Reset comboboxes
+    bidderCb.clear();
+    memberCb.clear();
+    handlerCb.clear();
+    document.getElementById('paymentFields').style.display = 'none';
     document.getElementById('bidSheet').classList.add('open');
     document.body.style.overflow = 'hidden';
-    document.getElementById('memberSearch').focus();
+    setTimeout(function() { document.getElementById('bidderInput').focus(); }, 300);
   }
 
   function closeBidSheet() {
     document.getElementById('bidSheet').classList.remove('open');
     document.body.style.overflow = '';
     document.getElementById('bidForm').reset();
-    document.getElementById('selectedMemberId').value = '';
-    document.getElementById('memberResults').classList.remove('open');
+    bidderCb.clear();
+    memberCb.clear();
+    handlerCb.clear();
     document.getElementById('paymentFields').style.display = 'none';
     currentItemId = null;
   }
@@ -513,7 +563,9 @@
     if (e.target === this) closeBidSheet();
   });
 
-  // ── Bid item card clicks (delegated) — replaces inline onclick ──
+  // ════════════════════════════════════════
+  // Bid item card clicks (delegated)
+  // ════════════════════════════════════════
   document.getElementById('availablePanel')?.addEventListener('click', function(e) {
     const card = e.target.closest('.bid-item-card');
     if (!card) return;
@@ -522,41 +574,6 @@
     const sticker = parseInt(card.dataset.bidSticker || '0');
     const cost = parseInt(card.dataset.bidCost || '0');
     openBidSheet(id, name, sticker, cost);
-  });
-
-  // ════════════════════════════════════════
-  // Member Autocomplete
-  // ════════════════════════════════════════
-  document.getElementById('memberSearch')?.addEventListener('input', function() {
-    const q = this.value.toLowerCase().trim();
-    const results = document.getElementById('memberResults');
-
-    if (!q) { results.classList.remove('open'); return; }
-
-    const matches = members.filter(m =>
-      m.name.toLowerCase().includes(q)
-    );
-
-    if (matches.length === 0) { results.classList.remove('open'); return; }
-
-    results.innerHTML = matches.map(m =>
-      `<div class="autocomplete-item" onclick="selectMember(${m.id}, '${m.name.replace(/'/g, "\\'")}')">${m.name}</div>`
-    ).join('');
-    results.classList.add('open');
-  });
-
-  function selectMember(id, name) {
-    document.getElementById('selectedMemberId').value = id;
-    document.getElementById('memberSearch').value = name;
-    document.getElementById('memberResults').classList.remove('open');
-    document.getElementById('bidAmount').focus();
-  }
-
-  // ── Close suggestions on document click ──
-  document.addEventListener('click', function(e) {
-    if (!e.target.closest('.autocomplete-wrapper')) {
-      document.getElementById('memberResults')?.classList.remove('open');
-    }
   });
 
   // ════════════════════════════════════════
@@ -580,6 +597,28 @@
     if (e.key === 'Enter') {
       e.preventDefault();
       document.getElementById('bidForm').requestSubmit();
+    }
+  });
+
+  // ════════════════════════════════════════
+  // Form submit — sync combobox values
+  // ════════════════════════════════════════
+  document.getElementById('bidForm')?.addEventListener('submit', function(e) {
+    // Ensure bidder_name is synced before submit
+    const bidderVal = bidderCb.getValue();
+    document.getElementById('bidderName').value = bidderVal;
+
+    // If no handler set, use the 競投者 value
+    const handlerVal = handlerCb.getValue();
+    if (!handlerVal) {
+      document.getElementById('handlerValue').value = bidderVal;
+    }
+
+    // If member is empty, mirror bidder
+    const memberVal = memberCb.getValue();
+    if (!memberVal) {
+      memberCb.setValue(bidderVal);
+      document.getElementById('memberHiddenId').value = document.getElementById('bidderMemberId').value;
     }
   });
 </script>
