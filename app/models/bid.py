@@ -48,7 +48,7 @@ class Bid(db.Model):
     created_at = db.Column(db.DateTime, server_default=db.func.now())
 
     # Relationships
-    member = db.relationship("Member", back_populates="bids")
+    member = db.relationship("Member", back_populates="bids", foreign_keys=[member_id])
     item = db.relationship("Item", back_populates="bids")
 
     def __repr__(self) -> str:
