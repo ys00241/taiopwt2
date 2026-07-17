@@ -327,7 +327,6 @@
       <div class="sticker" onclick="event.stopPropagation(); openItemDetail({{ item.id }});" style="cursor:pointer;">{{ "%02d"|format(item.sticker_no|int) if item.sticker_no else '??' }}</div>
       <div class="flex-1 min-w-0">
         <div class="font-headline-sm truncate" onclick="event.stopPropagation(); openItemDetail({{ item.id }});" style="cursor:pointer;">{{ item.item_name or item.actual_item or '未命名' }}</div>
-        <div class="font-body-sm text-on-surface-variant mt-xs">底價/成本: ${{ item.cost|int if item.cost else 0 }}</div>
       </div>
       <span class="material-symbols-outlined" style="color: var(--primary);">gavel</span>
       <button class="icon-btn" onclick="event.stopPropagation(); openItemDetail({{ item.id }});" title="檢視詳情" style="width:32px;height:32px;">
